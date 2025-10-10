@@ -142,7 +142,7 @@ abstract class AbstractPaimonScanTransformer(
         BackendsApiManager.getSparkPlanExecApiInstance.rewritePaimonPushdownFilters(
           filters,
           paimonScan.table.primaryKeys().asScala.toSet,
-          SUPPORTED_METADATA_COLUMNS.toSet)
+          SUPPORTED_METADATA_COLUMNS.iterator.toSet)
       case _ => filters
     }
 
@@ -176,6 +176,9 @@ abstract class AbstractPaimonScanTransformer(
           case paimonPartition: PaimonInputPartition =>
             paimonPartition.splits.zipWithIndex.foreach {
               case (split: DataSplit, splitIdx) =>
+                if (!split.beforeFiles().isEmpty) {
+                  throw new UnsupportedOperationException("Do not support before files")
+                }
                 val partitionRow =
                   partitionComputer.generatePartValues(shim.getSplitPartition(split))
                 val fileMetas = split.dataFiles().asScala
@@ -284,7 +287,7 @@ object AbstractPaimonScanTransformer {
           paimonScan.coreOptions.fileFormatString().equalsIgnoreCase(
             CoreOptions.FILE_FORMAT_PARQUET)
         val schemaCols = scan.readSchema().fields.map(_.name).toSet
-        val schemaHasMetadataCols = SUPPORTED_METADATA_COLUMNS.exists(schemaCols.contains)
+        val schemaHasMetadataCols = SUPPORTED_METADATA_COLUMNS.iterator.exists(schemaCols.contains)
         if (schemaHasMetadataCols && !isAllParquet) {
           return ValidationResult.failed(
             "[Paimon Fallback]: Metadata column queries are only supported with parquet files.")

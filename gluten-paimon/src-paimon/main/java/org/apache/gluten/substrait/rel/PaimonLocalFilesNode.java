@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import org.apache.gluten.config.GlutenConfig;
+
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.OrcReadOptions;
 import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.PaimonReadOptions;
@@ -74,18 +76,26 @@ public class PaimonLocalFilesNode extends LocalFilesNode {
 
   @Override
   protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {
+    Integer bucket = buckets.get(index);
+    Long firstRowId = firstRowIds.get(index);
+    Long maxSequenceNumber = maxSequenceNumbers.get(index);
+    Integer splitGroup = splitGroups.get(index);
     PaimonReadOptions.Builder paimonBuilder = PaimonReadOptions.newBuilder();
-    paimonBuilder.setBucket(buckets.get(index));
-    paimonBuilder.setFirstRowId(firstRowIds.get(index));
-    paimonBuilder.setMaxSequenceNumber(maxSequenceNumbers.get(index));
-    paimonBuilder.setSplitGroup(splitGroups.get(index));
+    paimonBuilder.setBucket(bucket);
+    paimonBuilder.setFirstRowId(firstRowId);
+    paimonBuilder.setMaxSequenceNumber(maxSequenceNumber);
+    paimonBuilder.setSplitGroup(splitGroup);
     paimonBuilder.setUseHiveSplit(useHiveSplit);
     paimonBuilder.addAllPrimaryKeys(primaryKeys);
     paimonBuilder.setRawConvertible(allRawConvertible);
 
     switch (fileFormat) {
       case ParquetReadFormat:
-        paimonBuilder.setParquet(ParquetReadOptions.newBuilder().build());
+        ParquetReadOptions parquetReadOptions =
+            ParquetReadOptions.newBuilder()
+                .setEnableRowGroupMaxminIndex(GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
+                .build();
+        paimonBuilder.setParquet(parquetReadOptions);
         break;
       case OrcReadFormat:
         paimonBuilder.setOrc(OrcReadOptions.newBuilder().build());
@@ -94,7 +104,6 @@ public class PaimonLocalFilesNode extends LocalFilesNode {
         throw new UnsupportedOperationException(
             "Unsupported file format " + fileFormat.name() + " for paimon data file.");
     }
-
     fileBuilder.setPaimon(paimonBuilder);
   }
 }

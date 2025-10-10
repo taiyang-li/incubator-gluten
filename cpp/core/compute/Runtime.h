@@ -18,6 +18,9 @@
 #pragma once
 
 #include <glog/logging.h>
+#include <bolt/common/memory/sparksql/NativeMemoryManagerFactory.h>
+#include <cstdint>
+#include <memory>
 
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
