@@ -21,13 +21,13 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
+import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
+import org.apache.gluten.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.execution.adaptive.InputStats
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
@@ -57,6 +57,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
 
+  def getInputStats: Option[InputStats] = Option.empty
+
   /** Returns the split infos that will be processed by the underlying native engine. */
   override def getSplitInfos: Seq[SplitInfo] = {
     getSplitInfosFromPartitions(getPartitions)
@@ -68,28 +70,18 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         .genSplitInfo(
           _,
           getPartitionSchema,
+          getDataSchema,
           fileFormat,
           getMetadataColumns().map(_.name),
           getProperties))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    var fields = schema.fields
-
-    this match {
-      case transformer: FileSourceScanExecTransformer =>
-        fields = appendStringFields(transformer.relation.schema, fields)
-      case transformer: HiveTableScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case transformer: BatchScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case _ =>
-    }
-
     val validationResult = BackendsApiManager.getSettings
       .validateScanExec(
         fileFormat,
-        fields,
+        schema.fields,
+        getDataSchema,
         getRootFilePaths,
         getProperties,
         sparkContext.hadoopConfiguration)
@@ -112,6 +104,17 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     } else {
       existingFields
     }
+  }
+
+  def getAdvancedExtension: Option[AdvancedExtensionNode] = {
+    // used by CH backend
+    val optimizationContent =
+      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
+
+    val optimization =
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(
+        StringValue.newBuilder.setValue(optimizationContent).build)
+    Some(ExtensionBuilder.makeAdvancedExtension(optimization, null))
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
@@ -139,23 +142,22 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val filterNodes = transformer.map(_.doTransform(context))
     val exprNode = filterNodes.orNull
 
-    // used by CH backend
-    val optimizationContent =
-      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
-
-    val optimization =
-      BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
-    val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
-
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
       columnTypeNodes,
       exprNode,
-      extensionNode,
+      getAdvancedExtension.getOrElse(ExtensionBuilder.makeAdvancedExtension(null)),
       context,
-      context.nextOperatorId(this.nodeName))
+      context.nextOperatorId(this.nodeName)
+    )
+    getInputStats.foreach(
+      inputStats => {
+        // scalastyle:off println
+        logInfo(s"hit scan inputStats with $inputStats")
+        // scalastyle:on println
+        readNode.asInstanceOf[ReadRelNode].setInputStats(inputStats)
+      })
     TransformContext(output, readNode)
   }
 }

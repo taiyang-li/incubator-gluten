@@ -127,6 +127,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
@@ -277,7 +278,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
-      enableCudf: Boolean = false
+      enableCudf: Boolean = false,
+      wsContext: WholeStageTransformContext
   ): Iterator[ColumnarBatch] = {
 
     require(

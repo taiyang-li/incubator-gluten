@@ -106,6 +106,7 @@ object ExpressionMappings {
     Sig[UnBase64](UNBASE64),
     Sig[Base64](BASE64),
     Sig[FormatString](FORMAT_STRING),
+    Sig[FormatNumber](FORMAT_NUMBER),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -266,6 +267,7 @@ object ExpressionMappings {
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
     Sig[MapEntries](MAP_ENTRIES),
     Sig[MapZipWith](MAP_ZIP_WITH),
+    Sig[MapFromEntries](MAP_FROM_ENTRIES),
     Sig[StringToMap](STR_TO_MAP),
     Sig[TransformKeys](TRANSFORM_KEYS),
     Sig[TransformValues](TRANSFORM_VALUES),
