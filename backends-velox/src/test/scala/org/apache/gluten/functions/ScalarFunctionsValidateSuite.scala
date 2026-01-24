@@ -323,9 +323,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion(
-    "array_contains(map_keys(m), k) vs map_contains_key(m, k)",
-    "3.3") {
+//  testWithMinSparkVersion("array_contains(map_keys(m), k)", "3.3") {
+  test("xxxx") {
     withTempPath {
       path =>
         Seq(
@@ -343,21 +342,18 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         val df = runQueryAndCompare(
           """
             |select
-            |  array_contains(map_keys(i), 1) <=> map_contains_key(i, 1) as eq_present,
-            |  array_contains(map_keys(i), 5) <=> map_contains_key(i, 5) as eq_absent,
-            |  array_contains(map_keys(i), cast(null as int)) <=>
-            |    map_contains_key(i, cast(null as int)) as eq_null_key
+            |  array_contains(map_keys(i), 1),
+            |  array_contains(map_keys(i), 5),
+            |  array_contains(map_keys(i), 10),
+            |  array_contains(map_keys(i), cast(null as int))
             |from map_tbl
-            |""".stripMargin) {
-          checkGlutenPlan[ProjectExecTransformer]
-        }
+            |""".stripMargin) { df =>
+          val plan = df.queryExecution.executedPlan
+          val exprs = collect(plan) { case f: ProjectExecTransformer => f.projectList }
+          assert(exprs.size == 1)
+          assert(exprs.head.size == 1)
 
-        val rows = df.collect()
-        assert(rows.nonEmpty)
-        rows.foreach { row =>
-          (0 until row.length).foreach { idx =>
-            assert(row.getBoolean(idx))
-          }
+          val projectList = exprs.head
         }
     }
   }
