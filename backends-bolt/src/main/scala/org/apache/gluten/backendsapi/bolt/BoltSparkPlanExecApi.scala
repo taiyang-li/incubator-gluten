@@ -205,7 +205,7 @@ class BoltSparkPlanExecApi extends SparkPlanExecApi {
       argument: ExpressionTransformer,
       function: ExpressionTransformer,
       expr: ArraySort): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+    BoltArraySortTransformer(substraitExprName, argument, function, expr)
   }
 
   /** Transform array exists to Substrait */
