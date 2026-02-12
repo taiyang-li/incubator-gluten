@@ -65,6 +65,7 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro,parquet,csv")
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
+      .set("spark.gluten.sql.debug", "true")
   }
 
   test("select_part_column") {
@@ -1192,9 +1193,14 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
     withTable("t") {
       sql("create table t (a array<string>) using parquet")
       sql("insert into t values (array('a', 'acds', 'bcedf', 'dc'))")
+      // With custom comparator
       runQueryAndCompare(
         "select array_sort(a, (x, y) -> " +
           "if(length(x) > length(y), 1, if(length(x) < length(y), -1, 0))) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+      // Without custom comparator (default)
+      runQueryAndCompare("select array_sort(a) from t") {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
