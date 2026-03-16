@@ -1034,7 +1034,7 @@ object BoltConfig extends ConfigRegistry {
       .internal()
       .doc("run shuffle inside bolt")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val ORC_USE_COLUMN_NAMES =
     buildConf("spark.gluten.sql.columnar.backend.bolt.orcUseColumnNames")
