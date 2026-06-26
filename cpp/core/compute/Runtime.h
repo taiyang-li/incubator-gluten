@@ -68,14 +68,16 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       const std::string& kind,
       MemoryManager* memoryManager,
       ThreadManager* threadManager,
-      const std::unordered_map<std::string, std::string>& sessionConf)>;
+      const std::unordered_map<std::string, std::string>& sessionConf,
+      int64_t taskId)>;
   using Releaser = std::function<void(Runtime*)>;
   static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
   static Runtime* create(
       const std::string& kind,
       MemoryManager* memoryManager,
       ThreadManager* threadManager,
-      const std::unordered_map<std::string, std::string>& sessionConf = {});
+      const std::unordered_map<std::string, std::string>& sessionConf = {},
+      int64_t taskId = -1);
   static void release(Runtime*);
   static std::optional<std::string>* localWriteFilesTempPath();
   static std::optional<std::string>* localWriteFileName();
@@ -84,8 +86,13 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       const std::string& kind,
       MemoryManager* memoryManager,
       ThreadManager* threadManager,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : kind_(kind), memoryManager_(memoryManager), threadManager_(threadManager), confMap_(confMap) {}
+      const std::unordered_map<std::string, std::string>& confMap,
+      int64_t taskId = -1)
+      : kind_(kind),
+        memoryManager_(memoryManager),
+        threadManager_(threadManager),
+        confMap_(confMap),
+        taskId_(taskId) {}
 
   virtual ~Runtime() = default;
 
@@ -194,6 +201,10 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return objStore_->save(obj);
   }
 
+  int64_t taskId() const {
+    return taskId_;
+  }
+
  protected:
   std::string kind_;
   MemoryManager* memoryManager_;
@@ -206,5 +217,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   std::optional<SparkTaskInfo> taskInfo_{std::nullopt};
   std::shared_ptr<WholeStageDumper> dumper_{nullptr};
+  int64_t taskId_{-1};
 };
 } // namespace gluten
