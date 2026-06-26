@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 243 functions and partially supports 25 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 244 functions and partially supports 25 functions.**
 
 ## Array Functions
 
@@ -369,7 +369,7 @@
 | encode             | Encode                      |          |                                                         |
 | endswith           | EndsWithExpressionBuilder   | PS       | BinaryType unsupported                                  |
 | find_in_set        | FindInSet                   | S        |                                                         |
-| format_number      | FormatNumber                |          |                                                         |
+| format_number      | FormatNumber                | S        |                                                         |
 | format_string      | FormatString                |          |                                                         |
 | initcap            | InitCap                     | S        |                                                         |
 | instr              | StringInstr                 | S        |                                                         |
