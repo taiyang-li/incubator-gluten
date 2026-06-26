@@ -551,6 +551,17 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("format_number function with column inputs offloaded to native") {
+    runQueryAndCompare("""SELECT format_number(l_extendedprice, 2), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT format_number(l_quantity, l_linenumber), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+  }
+
   test("map_from_arrays optimized by Spark constant folding") {
     withSQLConf(("spark.sql.optimizer.excludedRules", "")) {
       runQueryAndCompare("""SELECT map_from_arrays(sequence(1, 5),sequence(1, 5)), l_orderkey
