@@ -17,7 +17,10 @@
 package org.apache.gluten.utils
 
 trait SQLQueryTestSettings {
-  def getResourceFilePath: String
+  // The backend-neutral, shared directory holding Gluten's overwrite sql-tests
+  // (inputs/results). All backends reuse the same resources to avoid duplication.
+  def getResourceFilePath: String =
+    getClass.getResource("/").getPath + "../../../src/test/resources/sql-tests-gluten"
 
   def getSupportedSQLQueryTests: Set[String]
 
