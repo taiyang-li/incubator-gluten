@@ -426,24 +426,24 @@ done
 
 ### Run Examples
 
-We also provide some example inputs in [cpp/velox/benchmarks/data](../../cpp/velox/benchmarks/data).
-E.g. Files under [generic_q5](../../cpp/velox/benchmarks/data/generic_q5) simulates a first-stage in
+We also provide some example inputs in [cpp/benchmarks/data](../../cpp/benchmarks/data).
+E.g. Files under [generic_q5](../../cpp/benchmarks/data/generic_q5) simulates a first-stage in
 TPCH Q5, which has a heavy table scan. You can follow below steps to run this example.
 
 1.
 
-Open [generic_q5/q5_first_stage_0_split.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0_split.json)
+Open [generic_q5/q5_first_stage_0_split.json](../../cpp/benchmarks/data/generic_q5/q5_first_stage_0_split.json)
 with file editor. Search for `"uriFile": "LINEITEM"` and replace `LINEITEM` with the URI to one
 partition file in lineitem. In the next line, replace the number in `"length": "..."` with the
 actual file length. Suppose you are using the provided small TPCH table
-in [cpp/velox/benchmarks/data/tpch_sf10m](../../cpp/velox/benchmarks/data/tpch_sf10m), the replaced
+in [cpp/benchmarks/data/tpch_sf10m](../../cpp/benchmarks/data/tpch_sf10m), the replaced
 JSON should be like:
 
 ```
 {
   "items": [
     {
-      "uriFile": "file:///path/to/gluten/cpp/velox/benchmarks/data/tpch_sf10m/lineitem/part-00000-6c374e0a-7d76-401b-8458-a8e31f8ab704-c000.snappy.parquet",
+      "uriFile": "file:///path/to/gluten/cpp/benchmarks/data/tpch_sf10m/lineitem/part-00000-6c374e0a-7d76-401b-8458-a8e31f8ab704-c000.snappy.parquet",
       "length": "1863237",
       "parquet": {}
     }
@@ -462,7 +462,7 @@ processes=24 # Same value of spark.executor.instances
 threads=8 # Same value of spark.executor.cores
 
 for ((i=0; i<${processes}; i++)); do
-    ./generic_benchmark --plan /path/to/gluten/cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json --split /path/to/gluten/cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0_split.json --noprint-result --with-shuffle --threads $threads --cpu $((i*threads)) &
+    ./generic_benchmark --plan /path/to/gluten/cpp/benchmarks/data/generic_q5/q5_first_stage_0.json --split /path/to/gluten/cpp/benchmarks/data/generic_q5/q5_first_stage_0_split.json --noprint-result --with-shuffle --threads $threads --cpu $((i*threads)) &
 done >stdout.log 2>stderr.log
 ```
 
