@@ -16,15 +16,20 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
+import org.apache.spark.internal.Logging
 
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.paimon.io.DataFileMeta
+import org.apache.paimon.spark.PaimonScan
+import org.apache.paimon.table.source.DataSplit
+import org.apache.paimon.utils.InternalRowPartitionComputer
 
-case class OffloadPaimonScan() extends OffloadSingleNode {
-  override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case scan: BatchScanExec if AbstractPaimonScanTransformer.supportsBatchScan(scan.scan).ok() =>
-      AbstractPaimonScanTransformer(scan)
-    case other => other
-  }
+trait PaimonSparkShim extends Logging {
+
+  def isChainSplit(split: DataSplit): Boolean
+
+  def getSplitPartition(split: DataSplit): org.apache.paimon.data.InternalRow
+
+  def getBucketPath(split: DataSplit, file: DataFileMeta): String
+
+  def getInternalPartitionComputer(scan: PaimonScan): InternalRowPartitionComputer
 }
