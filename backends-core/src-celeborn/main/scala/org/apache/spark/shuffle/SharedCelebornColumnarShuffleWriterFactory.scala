@@ -18,25 +18,28 @@ package org.apache.spark.shuffle
 
 import org.apache.spark.TaskContext
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
+import org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleWriterFactory
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
-class VeloxCelebornColumnarShuffleWriterFactory extends SharedCelebornColumnarShuffleWriterFactory {
+abstract class SharedCelebornColumnarShuffleWriterFactory extends CelebornShuffleWriterFactory {
 
-  override protected def createBackendShuffleWriter[K, V](
+  protected def createBackendShuffleWriter[K, V](
+      shuffleId: Int,
+      handle: CelebornShuffleHandle[K, V, V],
+      context: TaskContext,
+      celebornConf: CelebornConf,
+      client: ShuffleClient,
+      writeMetrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V]
+
+  final override def createShuffleWriterInstance[K, V](
       shuffleId: Int,
       handle: CelebornShuffleHandle[K, V, V],
       context: TaskContext,
       celebornConf: CelebornConf,
       client: ShuffleClient,
       writeMetrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
-    new VeloxCelebornColumnarShuffleWriter[K, V](
-      shuffleId,
-      handle,
-      context,
-      celebornConf,
-      client,
-      writeMetrics)
+    createBackendShuffleWriter(shuffleId, handle, context, celebornConf, client, writeMetrics)
   }
 }
