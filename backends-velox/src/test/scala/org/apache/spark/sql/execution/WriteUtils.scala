@@ -17,47 +17,31 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
+import org.apache.gluten.test.NativeWriteCheckerBase
 
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest}
 import org.apache.spark.sql.catalyst.expressions.{BitwiseAnd, Expression, HiveHash, Literal, Pmod, UnsafeProjection}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.SQLTestUtils
-import org.apache.spark.sql.util.QueryExecutionListener
 
 import java.io.File
 
-trait WriteUtils extends GlutenQueryTest with SQLTestUtils {
+trait WriteUtils extends GlutenQueryTest with SQLTestUtils with NativeWriteCheckerBase {
+
+  override protected def waitUntilListenerBusEmpty(): Unit = {
+    spark.sparkContext.listenerBus.waitUntilEmpty()
+  }
 
   def tableDir(table: String): File = {
     val identifier = spark.sessionState.sqlParser.parseTableIdentifier(table)
     new File(spark.sessionState.catalog.defaultTablePath(identifier))
   }
 
-  def checkNativeWrite(sqlStr: String, expectNative: Boolean = true): Unit = {
-    var nativeUsed = false
-    val queryListener = new QueryExecutionListener {
-      override def onFailure(f: String, qe: QueryExecution, e: Exception): Unit = {}
-      override def onSuccess(funcName: String, qe: QueryExecution, duration: Long): Unit = {
-        if (!nativeUsed) {
-          nativeUsed = if (isSparkVersionGE("3.4")) {
-            qe.executedPlan.exists(_.isInstanceOf[ColumnarWriteFilesExec])
-          } else {
-            qe.executedPlan.exists(_.isInstanceOf[VeloxColumnarToCarrierRowExec])
-          }
-        }
-      }
-    }
-    try {
-      spark.listenerManager.register(queryListener)
-      spark.sql(sqlStr)
-      spark.sparkContext.listenerBus.waitUntilEmpty()
-      if (expectNative) {
-        assert(nativeUsed)
-      } else {
-        assert(!nativeUsed)
-      }
-    } finally {
-      spark.listenerManager.unregister(queryListener)
+  override protected def isNativeWritePlan(plan: SparkPlan): Boolean = {
+    if (isSparkVersionGE("3.4")) {
+      plan.exists(_.isInstanceOf[ColumnarWriteFilesExec])
+    } else {
+      plan.exists(_.isInstanceOf[VeloxColumnarToCarrierRowExec])
     }
   }
 
