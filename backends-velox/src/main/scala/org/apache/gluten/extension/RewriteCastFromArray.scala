@@ -19,40 +19,11 @@ package org.apache.gluten.extension
 import org.apache.gluten.config.VeloxConfig
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{ArrayJoin, Cast, Concat, Literal}
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreePattern.CAST
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, StringType}
 
 /**
  * Velox does not support cast Array to String. Before velox support, temporarily add this rule to
  * replace `cast(array as String)` with `concat('[', array_join(array, ', ', 'null'), ']')` to
  * support offload.
  */
-case class RewriteCastFromArray(spark: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (
-      !VeloxConfig.get.enableRewriteCastArrayToString ||
-      SQLConf.get.getConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING)
-    ) {
-      return plan
-    }
-    plan.transformUpWithPruning(_.containsPattern(CAST)) {
-      case p =>
-        p.transformExpressionsUpWithPruning(_.containsPattern(CAST)) {
-          case Cast(child, StringType, timeZoneId, evalMode)
-              if child.dataType.isInstanceOf[ArrayType] =>
-            val joinChild = child.dataType.asInstanceOf[ArrayType].elementType match {
-              case StringType =>
-                child
-              case _ =>
-                Cast(child, ArrayType(StringType), timeZoneId, evalMode)
-            }
-            val arrayJoin = ArrayJoin(joinChild, Literal(", "), Some(Literal("null")))
-            Concat(Seq(Literal("["), arrayJoin, Literal("]")))
-        }
-    }
-  }
-}
+case class RewriteCastFromArray(spark: SparkSession)
+  extends SharedRewriteCastFromArrayRule(VeloxConfig.get.enableRewriteCastArrayToString)
