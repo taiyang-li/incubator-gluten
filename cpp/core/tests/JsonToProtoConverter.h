@@ -14,4 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../core/operators/functions/Arithmetic.h"
+
+#pragma once
+
+#include <string>
+
+#include <google/protobuf/util/json_util.h>
+
+class JsonToProtoConverter {
+ public:
+  /// Reconstruct Protobuf message from Json file.
+  static void readFromFile(const std::string& msgPath, google::protobuf::Message& msg);
+};

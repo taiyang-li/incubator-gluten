@@ -14,4 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../core/operators/functions/Arithmetic.h"
+
+#pragma once
+
+#include <string>
+
+class FilePathGenerator {
+ public:
+  static const std::string getDataFilePath(const std::string& fileName);
+};
