@@ -17,6 +17,8 @@
 
 #include "SubstraitExtensionCollector.h"
 
+#include "VeloxSubstraitSignature.h"
+
 namespace gluten {
 
 int SubstraitExtensionCollector::getReferenceNumber(
@@ -25,46 +27,15 @@ int SubstraitExtensionCollector::getReferenceNumber(
   const auto& substraitFunctionSignature = VeloxSubstraitSignature::toSubstraitSignature(functionName, arguments);
   // TODO: Currently we treat all velox registry based function signatures as
   // custom substrait extension, so no uri link and leave it as empty.
-  return getReferenceNumber({"", substraitFunctionSignature});
-}
-
-template <typename T>
-bool SubstraitExtensionCollector::BiDirectionHashMap<T>::putIfAbsent(const int& key, const T& value) {
-  if (forwardMap_.find(key) == forwardMap_.end() && reverseMap_.find(value) == reverseMap_.end()) {
-    forwardMap_[key] = value;
-    reverseMap_[value] = key;
-    return true;
-  }
-  return false;
+  return extensionRegistry_->getReferenceNumber({"", substraitFunctionSignature});
 }
 
 void SubstraitExtensionCollector::addExtensionsToPlan(::substrait::Plan* plan) const {
-  using SimpleExtensionURI = ::substrait::extensions::SimpleExtensionURI;
-  // Currently we don't introduce any substrait extension YAML files, so always
-  // only have one URI.
-  SimpleExtensionURI* extensionUri = plan->add_extension_uris();
-  extensionUri->set_extension_uri_anchor(1);
-
-  for (const auto& [referenceNum, functionId] : extensionFunctions_->forwardMap()) {
-    auto extensionFunction = plan->add_extensions()->mutable_extension_function();
-    extensionFunction->set_extension_uri_reference(extensionUri->extension_uri_anchor());
-    extensionFunction->set_function_anchor(referenceNum);
-    extensionFunction->set_name(functionId.signature);
-  }
+  extensionRegistry_->addExtensionsToPlan(plan);
 }
 
 SubstraitExtensionCollector::SubstraitExtensionCollector() {
-  extensionFunctions_ = std::make_shared<BiDirectionHashMap<ExtensionFunctionId>>();
-}
-
-int SubstraitExtensionCollector::getReferenceNumber(const ExtensionFunctionId& extensionFunctionId) {
-  const auto& extensionFunctionAnchorIt = extensionFunctions_->reverseMap().find(extensionFunctionId);
-  if (extensionFunctionAnchorIt != extensionFunctions_->reverseMap().end()) {
-    return extensionFunctionAnchorIt->second;
-  }
-  ++functionReferenceNumber;
-  extensionFunctions_->putIfAbsent(functionReferenceNumber, extensionFunctionId);
-  return functionReferenceNumber;
+  extensionRegistry_ = std::make_shared<SubstraitExtensionRegistry>();
 }
 
 } // namespace gluten
