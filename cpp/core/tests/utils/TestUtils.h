@@ -14,4 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../core/operators/functions/Arithmetic.h"
+
+#pragma once
+
+#include <stdexcept>
+
+
+#define ASSERT_NOT_OK(status)                  \
+  do {                                         \
+    arrow::Status __s = (status);              \
+    if (!__s.ok()) {                           \
+      throw std::runtime_error(__s.message()); \
+    }                                          \
+  } while (false);

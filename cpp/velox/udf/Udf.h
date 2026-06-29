@@ -17,26 +17,4 @@
 
 #pragma once
 
-namespace gluten {
-
-struct UdfEntry {
-  const char* name;
-  const char* dataType;
-
-  int numArgs;
-  const char** argTypes;
-
-  bool variableArity{false};
-  bool allowTypeConversion{false};
-};
-
-#define GLUTEN_GET_NUM_UDF getNumUdf
-#define DEFINE_GET_NUM_UDF extern "C" int GLUTEN_GET_NUM_UDF()
-
-#define GLUTEN_GET_UDF_ENTRIES getUdfEntries
-#define DEFINE_GET_UDF_ENTRIES extern "C" void GLUTEN_GET_UDF_ENTRIES(gluten::UdfEntry* udfEntries)
-
-#define GLUTEN_REGISTER_UDF registerUdf
-#define DEFINE_REGISTER_UDF extern "C" void GLUTEN_REGISTER_UDF()
-
-} // namespace gluten
+#include "../../core/udf/Udf.h"

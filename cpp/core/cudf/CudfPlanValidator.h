@@ -14,4 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../core/operators/functions/Arithmetic.h"
+
+#pragma once
+
+#include "substrait/plan.pb.h"
+
+namespace gluten {
+class CudfPlanValidator {
+ public:
+  static bool validate(const ::substrait::Plan& substraitPlan);
+};
+} // namespace gluten

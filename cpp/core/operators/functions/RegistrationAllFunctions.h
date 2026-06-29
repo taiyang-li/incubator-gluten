@@ -14,4 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../core/operators/functions/Arithmetic.h"
+
+#pragma once
+
+namespace gluten {
+
+void registerAllFunctions();
+
+} // namespace gluten

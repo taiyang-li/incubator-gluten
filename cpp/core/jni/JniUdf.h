@@ -14,4 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../core/operators/functions/Arithmetic.h"
+
+#pragma once
+
+#include <jni.h>
+
+namespace gluten {
+
+void initJniUDF(JNIEnv* env);
+
+void finalizeJniUDF(JNIEnv* env);
+
+void jniRegisterFunctionSignatures(JNIEnv* env);
+
+} // namespace gluten

@@ -18,15 +18,13 @@
 #pragma once
 
 #include <jni.h>
-#include <string>
-#include <unordered_map>
+
+#include "../../core/jni/JniUdf.h"
 
 namespace gluten {
 
 void initVeloxJniUDF(JNIEnv* env);
 
 void finalizeVeloxJniUDF(JNIEnv* env);
-
-void jniRegisterFunctionSignatures(JNIEnv* env);
 
 } // namespace gluten
