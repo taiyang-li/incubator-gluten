@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.metrics
+package org.apache.gluten.metrics.shared
 
-import org.apache.gluten.metrics.shared.SharedWriteFilesMetricsUpdater
+import org.apache.gluten.metrics.MetricsUpdater
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-class WriteFilesMetricsUpdater(override val metrics: Map[String, SQLMetric])
-  extends SharedWriteFilesMetricsUpdater(metrics) {
+abstract class SharedWriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric])
+  extends MetricsUpdater {
 
-  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {
-      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      updateSharedMetrics(operatorMetrics.physicalWrittenBytes, operatorMetrics.numWrittenFiles)
-    }
+  final protected def updateSharedMetrics(
+      physicalWrittenBytes: Long,
+      numWrittenFiles: Long): Unit = {
+    metrics("physicalWrittenBytes") += physicalWrittenBytes
+    metrics("numWrittenFiles") += numWrittenFiles
   }
 }

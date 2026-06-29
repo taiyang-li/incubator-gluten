@@ -16,17 +16,19 @@
  */
 package org.apache.gluten.metrics
 
+import org.apache.gluten.metrics.shared.SharedWriteFilesMetricsUpdater
+
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class WriteFilesMetricsUpdater(override val metrics: Map[String, SQLMetric])
+  extends SharedWriteFilesMetricsUpdater(metrics) {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
+      updateSharedMetrics(operatorMetrics.physicalWrittenBytes, operatorMetrics.numWrittenFiles)
       metrics("writeIONanos") += operatorMetrics.writeIOTime
       metrics("wallNanos") += operatorMetrics.wallNanos
-      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
       metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
     }
   }
