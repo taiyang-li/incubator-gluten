@@ -37,9 +37,11 @@ import scala.collection.JavaConverters._
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
   import org.apache.spark.sql.catalyst.util._
 
+  protected def rewriteNativeScanFilters(filters: Seq[Expression]): Seq[Expression] = filters
+
   /** Returns the filters that can be pushed down to native file scan */
   final def filterExprs(): Seq[Expression] = {
-    if (pushDownFilters.nonEmpty) {
+    val nativeFilters = if (pushDownFilters.nonEmpty) {
       val (_, scanFiltersNotInPushDownFilters) =
         scanFilters.partition(pushDownFilters.get.contains(_))
       // For filters that only exists in scan, we need to check if they are supported.
@@ -59,6 +61,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       scanFilters.filter(
         BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
     }
+    rewriteNativeScanFilters(nativeFilters)
   }
 
   /** Returns the filters that already exists in scan. */

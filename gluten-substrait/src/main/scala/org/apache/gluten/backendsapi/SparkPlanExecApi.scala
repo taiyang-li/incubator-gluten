@@ -578,6 +578,27 @@ trait SparkPlanExecApi {
 
   def supportPushDownFilterToScan(sparkExecNode: LeafExecNode): Boolean = true
 
+  def validatePaimonScanCapabilities(
+      hasPrimaryKeys: Boolean,
+      allSplitsRawConvertible: Boolean,
+      deletionVectorsEnabled: Boolean,
+      changelogProducer: String,
+      mergeEngine: String): ValidationResult = {
+    if (deletionVectorsEnabled) {
+      return ValidationResult.failed(
+        "[Paimon Fallback]: The scan with deletion vector is not supported")
+    }
+    if (hasPrimaryKeys) {
+      return ValidationResult.failed("[Paimon Fallback]: Not support Paimon PK table.")
+    }
+    ValidationResult.succeeded
+  }
+
+  def rewritePaimonPushdownFilters(
+      filters: Seq[Expression],
+      primaryKeys: Set[String],
+      metadataColumns: Set[String]): Seq[Expression] = filters
+
   /** Return whether the filter is supported in scan. */
   def isSupportedScanFilter(filter: Expression, sparkExecNode: LeafExecNode): Boolean = {
     ExpressionConverter.canReplaceWithExpressionTransformer(

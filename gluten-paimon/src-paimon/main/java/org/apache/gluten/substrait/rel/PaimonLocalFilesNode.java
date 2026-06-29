@@ -16,11 +16,23 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import io.substrait.proto.ReadRel;
+import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.OrcReadOptions;
+import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.PaimonReadOptions;
+import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class PaimonLocalFilesNode extends LocalFilesNode {
+  private final List<Integer> buckets;
+  private final List<Long> firstRowIds;
+  private final List<Long> maxSequenceNumbers;
+  private final List<Integer> splitGroups;
+  private final boolean useHiveSplit;
+  private final List<String> primaryKeys;
+  private final boolean allRawConvertible;
 
   public PaimonLocalFilesNode(
       Integer index,
@@ -30,7 +42,14 @@ public class PaimonLocalFilesNode extends LocalFilesNode {
       List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      Map<String, String> properties) {
+      Map<String, String> properties,
+      List<Integer> buckets,
+      List<Long> firstRowIds,
+      List<Long> maxSequenceNumbers,
+      List<Integer> splitGroups,
+      boolean useHiveSplit,
+      List<String> primaryKeys,
+      boolean allRawConvertible) {
     super(
         index,
         paths,
@@ -44,5 +63,38 @@ public class PaimonLocalFilesNode extends LocalFilesNode {
         preferredLocations,
         properties,
         new ArrayList<>());
+    this.buckets = buckets;
+    this.firstRowIds = firstRowIds;
+    this.maxSequenceNumbers = maxSequenceNumbers;
+    this.splitGroups = splitGroups;
+    this.useHiveSplit = useHiveSplit;
+    this.primaryKeys = primaryKeys;
+    this.allRawConvertible = allRawConvertible;
+  }
+
+  @Override
+  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {
+    PaimonReadOptions.Builder paimonBuilder = PaimonReadOptions.newBuilder();
+    paimonBuilder.setBucket(buckets.get(index));
+    paimonBuilder.setFirstRowId(firstRowIds.get(index));
+    paimonBuilder.setMaxSequenceNumber(maxSequenceNumbers.get(index));
+    paimonBuilder.setSplitGroup(splitGroups.get(index));
+    paimonBuilder.setUseHiveSplit(useHiveSplit);
+    paimonBuilder.addAllPrimaryKeys(primaryKeys);
+    paimonBuilder.setRawConvertible(allRawConvertible);
+
+    switch (fileFormat) {
+      case ParquetReadFormat:
+        paimonBuilder.setParquet(ParquetReadOptions.newBuilder().build());
+        break;
+      case OrcReadFormat:
+        paimonBuilder.setOrc(OrcReadOptions.newBuilder().build());
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported file format " + fileFormat.name() + " for paimon data file.");
+    }
+
+    fileBuilder.setPaimon(paimonBuilder);
   }
 }
