@@ -92,4 +92,49 @@
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
   </build>
+
+  <profiles>
+    <profile>
+      <id>iceberg</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+          <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <version>${iceberg.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.xolstice.maven.plugins</groupId>
+            <artifactId>protobuf-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>compile-gluten-iceberg-proto</id>
+                <goals>
+                  <goal>compile</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                  <protoSourceRoot>${project.basedir}/src-iceberg/main/resources/org/apache/gluten/proto</protoSourceRoot>
+                  <clearOutputDirectory>false</clearOutputDirectory>
+                  <checkStaleness>true</checkStaleness>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
