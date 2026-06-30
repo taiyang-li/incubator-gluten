@@ -17,8 +17,12 @@
 
 #pragma once
 
-#include "velox/vector/BaseVector.h"
+#include <vector>
 
-using namespace facebook::velox;
+namespace gluten {
 
-#include "../../core/substrait/VariantToVectorConverter.h"
+/// Create Base Vector from backend variants.
+/// Only scalar types are supported except VARBINARY.
+VectorPtr setVectorFromVariants(const TypePtr& type, const std::vector<variant>& values, memory::MemoryPool* pool);
+
+} // namespace gluten

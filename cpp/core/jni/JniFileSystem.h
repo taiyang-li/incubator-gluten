@@ -17,8 +17,13 @@
 
 #pragma once
 
-#include "velox/vector/BaseVector.h"
+#include <cstdint>
 
-using namespace facebook::velox;
+namespace gluten {
 
-#include "../../core/substrait/VariantToVectorConverter.h"
+// Register JNI-or-local (or JVM-over-local, as long as it describes what happens here) file system. maxFileSize is
+// necessary (!= 0) because we use this size to decide whether a new file can fit in JVM heap, otherwise we write it via
+// local fs directly.
+void registerJolFileSystem(uint64_t maxFileSize);
+
+} // namespace gluten
