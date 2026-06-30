@@ -17,7 +17,7 @@
 package org.apache.gluten.benchmarks
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
+import org.apache.gluten.execution.{SharedWholeStageTransformerSuite, WholeStageTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
@@ -30,7 +30,7 @@ import java.io.File
 
 object GenerateExample extends Tag("org.apache.gluten.tags.GenerateExample")
 
-class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
+class NativeBenchmarkPlanGenerator extends SharedWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
   val generatedPlanDir = getClass.getResource("/").getPath + "../../../generated-native-benchmark/"
