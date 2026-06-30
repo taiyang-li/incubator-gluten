@@ -17,13 +17,13 @@
 package org.apache.gluten.fuzzer
 
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
-import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
+import org.apache.gluten.execution.SharedWholeStageTransformerSuite
 import org.apache.gluten.fuzzer.FuzzerResult.{Failed, OOM, Successful, TestResult}
 import org.apache.gluten.memory.memtarget.ThrowOnOomMemoryTarget
 
 import org.apache.spark.SparkConf
 
-abstract class FuzzerBase extends VeloxWholeStageTransformerSuite {
+abstract class FuzzerBase extends SharedWholeStageTransformerSuite {
 
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
