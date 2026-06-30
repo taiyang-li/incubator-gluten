@@ -28,7 +28,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
     getClass.getResource("/").getPath + "../../../src/test/resources"
 
   override protected val resourcePath: String =
-    new File(tpchBasePath, "tpch-data-parquet").getCanonicalPath
+    getClass.getResource("/tpch-data-parquet").getFile
 
   // FIXME: Unused.
   override protected val queriesResults: String =

@@ -79,11 +79,9 @@ public class TestTPCHStoragePartitionedJoins extends SparkTestBaseWithCatalog {
   // we don't need to test the catalog, so only test the testhadoop catalog
   @Before
   public void createTPCHNotNullTables() {
+    final String tableDir = this.getClass().getResource("/tpch-data-parquet").getFile();
     tableNames.forEach(
         table -> {
-          String tableDir = tpchBasePath + "/tpch-data-parquet";
-          //            String tableDir =
-          // "/Users/chengchengjin/code/gluten/backends-velox/src/test/resources/tpch-data-parquet";
           String tablePath = new File(tableDir, table).getAbsolutePath();
           Dataset<Row> tableDF = spark.read().format("parquet").load(tablePath);
           tableDF.createOrReplaceTempView(PARQUET_TABLE_PREFIX + table);
