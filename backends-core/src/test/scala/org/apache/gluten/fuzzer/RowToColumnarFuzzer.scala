@@ -17,7 +17,7 @@
 package org.apache.gluten.fuzzer
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.RowToVeloxColumnarExec
+import org.apache.gluten.execution.SharedRowToColumnarExec
 import org.apache.gluten.fuzzer.FuzzerResult.Successful
 import org.apache.gluten.tags.{FuzzerTest, SkipTest}
 
@@ -34,7 +34,7 @@ class RowToColumnarFuzzer extends FuzzerBase {
   }
 
   private def checkOperators(df: DataFrame): Unit = {
-    checkGlutenPlan[RowToVeloxColumnarExec](df)
+    checkGlutenPlan[SharedRowToColumnarExec](df)
   }
 
   private val TEST_ROW_TO_COLUMNAR = "row to columnar"
