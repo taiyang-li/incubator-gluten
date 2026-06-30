@@ -276,6 +276,17 @@ object MetricsUtil extends Logging {
           p
         }
         ju.updateJoinMetrics(operatorMetrics, metrics.getSingleMetrics, joinParams)
+      case ju: SharedJoinMetricsUpdaterBase =>
+        // JoinRel and CrossRel output two suites of metrics respectively for build and probe.
+        // Therefore, fetch one more suite of metrics here.
+        operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
+        curMetricsIdx -= 1
+        val joinParams = Option(joinParamsMap.get(operatorIdx)).getOrElse {
+          val p = JoinParams()
+          p.postProjectionNeeded = false
+          p
+        }
+        ju.updateJoinMetrics(operatorMetrics, metrics.getSingleMetrics, joinParams)
       case u: UnionMetricsUpdater =>
         // Union outputs two suites of metrics respectively.
         // Therefore, fetch one more suite of metrics here.

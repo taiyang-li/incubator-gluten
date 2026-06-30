@@ -29,7 +29,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -92,7 +93,7 @@ abstract class SharedRowToColumnarExec(child: SparkPlan) extends RowToColumnarEx
     val convertTime = longMetric("convertTime")
     val numRows = GlutenConfig.get.maxBatchSize
     val numBytes = preferredBatchBytes
-    val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
+    val mode = SharedRowToColumnarExec.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
     sparkToBackendUnsafe(
       sparkContext,
@@ -113,6 +114,15 @@ abstract class SharedRowToColumnarExec(child: SparkPlan) extends RowToColumnarEx
 }
 
 object SharedRowToColumnarExec {
+
+  private def getBroadcastMode(partitioning: Partitioning): BroadcastMode = {
+    partitioning match {
+      case BroadcastPartitioning(mode) =>
+        mode
+      case _ =>
+        throw new IllegalArgumentException("Unexpected partitioning: " + partitioning.toString)
+    }
+  }
 
   def toColumnarBatchIterator(
       it: Iterator[InternalRow],

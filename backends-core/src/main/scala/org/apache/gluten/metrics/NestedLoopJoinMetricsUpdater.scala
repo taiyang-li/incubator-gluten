@@ -25,7 +25,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 class NestedLoopJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
-  extends JoinMetricsUpdaterBase(metrics) {
+  extends SharedJoinMetricsUpdaterBase(metrics) {
 
   val nestedLoopJoinBuildInputRows: SQLMetric = metrics("nestedLoopJoinBuildInputRows")
   val nestedLoopJoinBuildOutputRows: SQLMetric = metrics("nestedLoopJoinBuildOutputRows")
