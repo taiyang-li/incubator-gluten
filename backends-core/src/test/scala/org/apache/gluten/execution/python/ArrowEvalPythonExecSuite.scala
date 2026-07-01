@@ -19,12 +19,15 @@ package org.apache.gluten.execution.python
 import org.apache.gluten.execution.WholeStageTransformerSuite
 
 import org.apache.spark.SparkConf
-import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.IntegratedUDFTestUtils
 import org.apache.spark.sql.types.{DataType, LongType, StringType}
 import org.apache.spark.util.SparkVersionUtil
 
 class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
+
+  private val columnarArrowEvalPythonExecClassName =
+    "org.apache.spark.api.python.ColumnarArrowEvalPythonExec"
 
   import IntegratedUDFTestUtils._
   import testImplicits.localSeqToDatasetHolder
@@ -61,7 +64,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     ).toDF("a", "p_a")
 
     val df2 = base.select("a").withColumn("p_a", pyarrowTestUDFString(base("a")))
-    checkSparkPlan[ColumnarArrowEvalPythonExec](df2)
+    checkColumnarArrowEvalPythonExec(df2)
     checkAnswer(df2, expected)
   }
 
@@ -83,7 +86,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
 
     val df =
       base.withColumn("p_a", pyarrowTestUDFString(base("a"))).withColumn("d_b", base("b") * 2)
-    checkSparkPlan[ColumnarArrowEvalPythonExec](df)
+    checkColumnarArrowEvalPythonExec(df)
     checkAnswer(df, expected)
   }
 
@@ -121,6 +124,26 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
         .newInstance(name, returnType)
     } else {
       TestScalarPandasUDF(name)
+    }
+  }
+
+  private def checkColumnarArrowEvalPythonExec(df: DataFrame): Unit = {
+    val planClass = loadPlanClass(columnarArrowEvalPythonExecClassName)
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      executedPlan.exists(planClass.isInstance),
+      s"Expect ${planClass.getSimpleName} exists in executedPlan:\n ${executedPlan.last}"
+    )
+  }
+
+  private def loadPlanClass(className: String): Class[_] = {
+    try {
+      // scalastyle:off classforname
+      Class.forName(className)
+      // scalastyle:on classforname
+    } catch {
+      case e: ClassNotFoundException =>
+        fail(s"$className is not available on current backend classpath", e)
     }
   }
 }
