@@ -47,6 +47,12 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>backends-core</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf.version}</version>

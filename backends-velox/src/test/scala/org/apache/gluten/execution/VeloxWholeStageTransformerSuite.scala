@@ -16,6 +16,4 @@
  */
 package org.apache.gluten.execution
 
-abstract class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
-  disableFallbackCheck
-}
+abstract class VeloxWholeStageTransformerSuite extends SharedWholeStageTransformerSuite

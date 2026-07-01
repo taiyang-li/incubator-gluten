@@ -16,10 +16,6 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.spark.shuffle.gluten.celeborn.CelebornColumnarBatchSerializerFactory
-
-class CHCelebornColumnarBatchSerializerFactory extends CelebornColumnarBatchSerializerFactory {
-
-  override def columnarBatchSerializerClass(): String =
-    "org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer"
-}
+class CHCelebornColumnarBatchSerializerFactory
+  extends SharedCelebornColumnarBatchSerializerFactory(
+    "org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer")

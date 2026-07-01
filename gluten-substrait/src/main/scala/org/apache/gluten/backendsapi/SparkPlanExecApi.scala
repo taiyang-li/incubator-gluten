@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -101,6 +102,16 @@ trait SparkPlanExecApi {
       initialInputBufferOffset,
       resultExpressions,
       child)
+
+  /**
+   * Offload a [[org.apache.spark.sql.execution.aggregate.SortAggregateExec]] to a columnar
+   * transformer. By default it goes through [[HashAggregateExecBaseTransformer.fromSortAggregate]]
+   * so that the result is tagged as a sort-based aggregate (used by sort elimination rules).
+   * Backends that do not need the sort-based semantic can override this to fall back to a regular
+   * hash aggregate transformer.
+   */
+  def offloadSortAggregate(plan: BaseAggregateExec): HashAggregateExecBaseTransformer =
+    HashAggregateExecBaseTransformer.fromSortAggregate(plan)
 
   /** Generate HashAggregateExecPullOutHelper */
   def genHashAggregateExecPullOutHelper(
@@ -273,6 +284,14 @@ trait SparkPlanExecApi {
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
     throw new GlutenNotSupportException("map_entries is not supported")
+  }
+
+  /** Transform sequence to Substrait. */
+  def genSequenceTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Sequence): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
   /** Transform array filter to Substrait. */
@@ -558,6 +577,27 @@ trait SparkPlanExecApi {
   def rewriteSpillPath(path: String): String = path
 
   def supportPushDownFilterToScan(sparkExecNode: LeafExecNode): Boolean = true
+
+  def validatePaimonScanCapabilities(
+      hasPrimaryKeys: Boolean,
+      allSplitsRawConvertible: Boolean,
+      deletionVectorsEnabled: Boolean,
+      changelogProducer: String,
+      mergeEngine: String): ValidationResult = {
+    if (deletionVectorsEnabled) {
+      return ValidationResult.failed(
+        "[Paimon Fallback]: The scan with deletion vector is not supported")
+    }
+    if (hasPrimaryKeys) {
+      return ValidationResult.failed("[Paimon Fallback]: Not support Paimon PK table.")
+    }
+    ValidationResult.succeeded
+  }
+
+  def rewritePaimonPushdownFilters(
+      filters: Seq[Expression],
+      primaryKeys: Set[String],
+      metadataColumns: Set[String]): Seq[Expression] = filters
 
   /** Return whether the filter is supported in scan. */
   def isSupportedScanFilter(filter: Expression, sparkExecNode: LeafExecNode): Boolean = {

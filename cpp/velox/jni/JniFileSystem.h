@@ -22,12 +22,9 @@
 #include "velox/common/file/File.h"
 #include "velox/common/file/FileSystems.h"
 
-namespace gluten {
+#include "../../core/jni/JniFileSystem.h"
 
-// Register JNI-or-local (or JVM-over-local, as long as it describes what happens here) file system. maxFileSize is
-// necessary (!= 0) because we use this size to decide whether a new file can fit in JVM heap, otherwise we write it via
-// local fs directly.
-void registerJolFileSystem(uint64_t maxFileSize);
+namespace gluten {
 
 void initVeloxJniFileSystem(JNIEnv* env);
 

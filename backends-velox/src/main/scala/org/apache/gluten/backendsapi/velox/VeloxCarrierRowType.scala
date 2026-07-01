@@ -16,11 +16,11 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.execution.{SharedCarrierRowType, VeloxColumnarToCarrierRowExec}
+import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
-object VeloxCarrierRowType extends Convention.RowType {
-  override protected[this] def registerTransitions(): Unit = {
-    fromBatch(VeloxBatchType, VeloxColumnarToCarrierRowExec.apply)
-  }
+object VeloxCarrierRowType extends SharedCarrierRowType {
+  override protected def backendBatchType: Convention.BatchType = VeloxBatchType
+
+  override protected def toCarrierRowTransition: Transition = VeloxColumnarToCarrierRowExec.apply
 }

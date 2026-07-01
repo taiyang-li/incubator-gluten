@@ -16,25 +16,17 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.ArrowNativeBatchType
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
 import org.apache.gluten.columnarbatch.VeloxColumnarBatches
-import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ArrowColumnarToVeloxColumnarExec(override val child: SparkPlan)
-  extends ColumnarToColumnarExec(child)
-  with GlutenColumnarToColumnarTransition {
+  extends SharedArrowColumnarToBackendColumnarExec(child, VeloxBatchType) {
 
-  override protected val from: Convention.BatchType = ArrowNativeBatchType
-
-  override protected val to: Convention.BatchType = VeloxBatchType
-
-  override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    in.map(b => VeloxColumnarBatches.toVeloxBatch(b))
-  }
+  override protected def toBackendBatch(batch: ColumnarBatch): ColumnarBatch =
+    VeloxColumnarBatches.toVeloxBatch(batch)
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)

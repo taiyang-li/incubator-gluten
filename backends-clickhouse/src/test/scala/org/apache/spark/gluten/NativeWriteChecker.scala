@@ -18,11 +18,11 @@ package org.apache.spark.gluten
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CHColumnarToCarrierRowExec, GlutenClickHouseWholeStageTransformerSuite}
+import org.apache.gluten.test.NativeWriteCheckerBase
 
 import org.apache.spark.sql.{Dataset, Row}
-import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, QueryExecution}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, QueryExecution, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.util.QueryExecutionListener
 
 import java.io.File
 
@@ -30,6 +30,7 @@ import scala.reflect.runtime.universe.TypeTag
 
 trait NativeWriteChecker
   extends GlutenClickHouseWholeStageTransformerSuite
+  with NativeWriteCheckerBase
   with AdaptiveSparkPlanHelper {
 
   private val formats: Seq[String] = Seq("orc", "parquet")
@@ -39,37 +40,31 @@ trait NativeWriteChecker
   protected def getWarehouseDir: String = dataHome + "/中文/spark-warehouse"
   // scalastyle:on nonascii
 
-  def withNativeWriteCheck(checkNative: Boolean)(block: => Unit): Unit = {
-    var nativeUsed = false
+  override protected def waitUntilListenerBusEmpty(): Unit = {
+    spark.sparkContext.listenerBus.waitUntilEmpty()
+  }
 
-    val queryListener = new QueryExecutionListener {
-      override def onFailure(f: String, qe: QueryExecution, e: Exception): Unit = {
-        fail("query failed", e)
-      }
-      override def onSuccess(funcName: String, qe: QueryExecution, duration: Long): Unit = {
-        if (!nativeUsed) {
-          val executedPlan = stripAQEPlan(qe.executedPlan)
-          nativeUsed = if (isSparkVersionGE("3.5")) {
-            executedPlan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
-          } else {
-            executedPlan.find(_.isInstanceOf[CHColumnarToCarrierRowExec]).isDefined
-          }
-        }
-      }
-    }
-    try {
-      spark.listenerManager.register(queryListener)
-      block
-      spark.sparkContext.listenerBus.waitUntilEmpty()
-      assertResult(checkNative)(nativeUsed)
-    } finally {
-      spark.listenerManager.unregister(queryListener)
+  override protected def normalizeExecutedPlan(qe: QueryExecution): SparkPlan = {
+    stripAQEPlan(qe.executedPlan)
+  }
+
+  override protected def isNativeWritePlan(plan: SparkPlan): Boolean = {
+    if (isSparkVersionGE("3.5")) {
+      plan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
+    } else {
+      plan.find(_.isInstanceOf[CHColumnarToCarrierRowExec]).isDefined
     }
   }
+
+  override protected def onNativeWriteQueryFailure(
+      funcName: String,
+      qe: QueryExecution,
+      error: Exception): Unit = {
+    fail("query failed", error)
+  }
+
   def checkInsertQuery(sqlStr: String, checkNative: Boolean): Unit =
-    withNativeWriteCheck(checkNative) {
-      spark.sql(sqlStr)
-    }
+    checkNativeWrite(sqlStr, checkNative)
 
   def withDestinationTable(table: String, createTableSql: Option[String] = None)(
       f: => Unit): Unit = {

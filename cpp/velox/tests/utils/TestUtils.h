@@ -17,10 +17,4 @@
 
 #pragma once
 
-#define ASSERT_NOT_OK(status)                  \
-  do {                                         \
-    arrow::Status __s = (status);              \
-    if (!__s.ok()) {                           \
-      throw std::runtime_error(__s.message()); \
-    }                                          \
-  } while (false);
+#include "../../../core/tests/utils/TestUtils.h"

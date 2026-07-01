@@ -735,7 +735,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("orc scan") {
     val df = spark.read
       .format("orc")
-      .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
+      .load("../../cpp/benchmarks/data/bm_lineitem/orc/lineitem.orc")
     df.createOrReplaceTempView("lineitem_orc")
     runQueryAndCompare("select l_orderkey from lineitem_orc") {
       df =>

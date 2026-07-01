@@ -15,22 +15,4 @@
  * limitations under the License.
  */
 
-#include "utils//JsonToProtoConverter.h"
-#include <fstream>
-#include <sstream>
-#include "velox/common/base/Exceptions.h"
-
-void JsonToProtoConverter::readFromFile(const std::string& msgPath, google::protobuf::Message& msg) {
-  // Read json file and resume the Substrait plan.
-  std::ifstream msgJson(msgPath);
-  VELOX_CHECK(!msgJson.fail(), "Failed to open file: {}. {}", msgPath, strerror(errno));
-  std::stringstream buffer;
-  buffer << msgJson.rdbuf();
-  std::string msgData = buffer.str();
-  auto status = google::protobuf::util::JsonStringToMessage(msgData, &msg);
-  VELOX_CHECK(
-      status.ok(),
-      "Failed to parse Substrait JSON: {} {}",
-      static_cast<int8_t>(status.code()),
-      status.message().ToString());
-}
+#include "../../core/tests/JsonToProtoConverter.cc"

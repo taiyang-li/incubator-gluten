@@ -16,56 +16,13 @@
  */
 
 #include "VariantToVectorConverter.h"
+
 #include "velox/vector/FlatVector.h"
 
-namespace gluten {
+#define GLUTEN_DYNAMIC_SCALAR_TYPE_DISPATCH VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH
+#define GLUTEN_UNSUPPORTED VELOX_UNSUPPORTED
 
-namespace {
-template <TypeKind KIND>
-VectorPtr
-setVectorFromVariantsByKind(const std::vector<variant>& values, const TypePtr& type, memory::MemoryPool* pool) {
-  using T = typename TypeTraits<KIND>::NativeType;
+#include "../../core/substrait/VariantToVectorConverter.cc"
 
-  auto flatVector = BaseVector::create<FlatVector<T>>(type, values.size(), pool);
-
-  for (vector_size_t i = 0; i < values.size(); i++) {
-    if (values[i].isNull()) {
-      flatVector->setNull(i, true);
-    } else {
-      flatVector->set(i, values[i].value<T>());
-    }
-  }
-  return flatVector;
-}
-
-template <>
-VectorPtr setVectorFromVariantsByKind<TypeKind::VARBINARY>(
-    const std::vector<variant>& /* values */,
-    const TypePtr& /*type*/,
-    memory::MemoryPool* /* pool */) {
-  VELOX_UNSUPPORTED("Return of VARBINARY data is not supported");
-}
-
-template <>
-VectorPtr setVectorFromVariantsByKind<TypeKind::VARCHAR>(
-    const std::vector<variant>& values,
-    const TypePtr& type,
-    memory::MemoryPool* pool) {
-  auto flatVector = BaseVector::create<FlatVector<StringView>>(type, values.size(), pool);
-
-  for (vector_size_t i = 0; i < values.size(); i++) {
-    if (values[i].isNull()) {
-      flatVector->setNull(i, true);
-    } else {
-      flatVector->set(i, StringView(values[i].value<TypeKind::VARCHAR>()));
-    }
-  }
-  return flatVector;
-}
-} // namespace
-
-VectorPtr setVectorFromVariants(const TypePtr& type, const std::vector<variant>& values, memory::MemoryPool* pool) {
-  return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(setVectorFromVariantsByKind, type->kind(), values, type, pool);
-}
-
-} // namespace gluten
+#undef GLUTEN_DYNAMIC_SCALAR_TYPE_DISPATCH
+#undef GLUTEN_UNSUPPORTED

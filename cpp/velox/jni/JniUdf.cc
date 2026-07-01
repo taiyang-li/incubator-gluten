@@ -16,79 +16,15 @@
  */
 
 #include "JniUdf.h"
-#include "jni/JniCommon.h"
-#include "udf/UdfLoader.h"
-#include "utils/Exception.h"
 
-namespace {
+namespace gluten {
 
-static JavaVM* vm;
-
-const std::string kUdfResolverClassPath = "Lorg/apache/spark/sql/expression/UDFResolver$;";
-
-static jclass udfResolverClass;
-static jmethodID registerUDFMethod;
-static jmethodID registerUDAFMethod;
-
-} // namespace
-
-void gluten::initVeloxJniUDF(JNIEnv* env) {
-  if (env->GetJavaVM(&vm) != JNI_OK) {
-    throw gluten::GlutenException("Unable to get JavaVM instance");
-  }
-
-  // classes
-  udfResolverClass = createGlobalClassReferenceOrError(env, kUdfResolverClassPath.c_str());
-
-  // methods
-  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", "(Ljava/lang/String;[B[BZZ)V");
-  registerUDAFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDAF", "(Ljava/lang/String;[B[B[BZZ)V");
+void initVeloxJniUDF(JNIEnv* env) {
+  initJniUDF(env);
 }
 
-void gluten::finalizeVeloxJniUDF(JNIEnv* env) {
-  env->DeleteGlobalRef(udfResolverClass);
+void finalizeVeloxJniUDF(JNIEnv* env) {
+  finalizeJniUDF(env);
 }
 
-void gluten::jniRegisterFunctionSignatures(JNIEnv* env) {
-  auto udfLoader = gluten::UdfLoader::getInstance();
-
-  const auto& signatures = udfLoader->getRegisteredUdfSignatures();
-  for (const auto& signature : signatures) {
-    jstring name = env->NewStringUTF(signature->name.c_str());
-    jbyteArray returnType = env->NewByteArray(signature->returnType.length());
-    env->SetByteArrayRegion(
-        returnType, 0, signature->returnType.length(), reinterpret_cast<const jbyte*>(signature->returnType.c_str()));
-    jbyteArray argTypes = env->NewByteArray(signature->argTypes.length());
-    env->SetByteArrayRegion(
-        argTypes, 0, signature->argTypes.length(), reinterpret_cast<const jbyte*>(signature->argTypes.c_str()));
-    jobject instance = env->GetStaticObjectField(
-        udfResolverClass, env->GetStaticFieldID(udfResolverClass, "MODULE$", kUdfResolverClassPath.c_str()));
-    if (!signature->intermediateType.empty()) {
-      jbyteArray intermediateType = env->NewByteArray(signature->intermediateType.length());
-      env->SetByteArrayRegion(
-          intermediateType,
-          0,
-          signature->intermediateType.length(),
-          reinterpret_cast<const jbyte*>(signature->intermediateType.c_str()));
-      env->CallVoidMethod(
-          instance,
-          registerUDAFMethod,
-          name,
-          returnType,
-          argTypes,
-          intermediateType,
-          signature->variableArity,
-          signature->allowTypeConversion);
-    } else {
-      env->CallVoidMethod(
-          instance,
-          registerUDFMethod,
-          name,
-          returnType,
-          argTypes,
-          signature->variableArity,
-          signature->allowTypeConversion);
-    }
-    checkException(env);
-  }
-}
+} // namespace gluten
