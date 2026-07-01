@@ -16,65 +16,18 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.columnarbatch.VeloxColumnarBatches
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.mutable
-import scala.util.control.Breaks._
-
 case class ColumnarCollectTailExec(
     limit: Int,
     child: SparkPlan
-) extends ColumnarCollectTailBaseExec(limit, child) {
+) extends SharedColumnarCollectTailExec(limit, child) {
 
-  override protected def collectTailRows(
-      partitionIter: Iterator[ColumnarBatch],
-      limit: Int
-  ): Iterator[ColumnarBatch] = {
-    if (!partitionIter.hasNext || limit <= 0) {
-      return Iterator.empty
-    }
-
-    val tailQueue = new mutable.ListBuffer[ColumnarBatch]()
-    var totalRowsInTail = 0L
-
-    while (partitionIter.hasNext) {
-      val batch = partitionIter.next()
-      val batchRows = batch.numRows()
-      ColumnarBatches.retain(batch)
-      tailQueue += batch
-      totalRowsInTail += batchRows
-
-      breakable {
-        while (tailQueue.nonEmpty) {
-          val front = tailQueue.head
-          val frontRows = front.numRows()
-
-          if (totalRowsInTail - frontRows >= limit) {
-            val dropped = tailQueue.remove(0)
-            dropped.close()
-            totalRowsInTail -= frontRows
-          } else {
-            break
-          }
-        }
-      }
-    }
-
-    val overflow = totalRowsInTail - limit
-    if (overflow > 0) {
-      val first = tailQueue.remove(0)
-      val keep = first.numRows() - overflow
-      val sliced = VeloxColumnarBatches.slice(first, overflow.toInt, keep.toInt)
-      tailQueue.prepend(sliced)
-      first.close()
-    }
-
-    tailQueue.iterator
-  }
+  override protected def sliceBatch(batch: ColumnarBatch, offset: Int, length: Int): ColumnarBatch =
+    VeloxColumnarBatches.slice(batch, offset, length)
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
