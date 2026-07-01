@@ -17,9 +17,10 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{ColumnarPartialProjectExec, WholeStageTransformerSuite}
+import org.apache.gluten.execution.WholeStageTransformerSuite
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.udf
@@ -31,6 +32,9 @@ case class MyStruct(a: Long, b: Array[Long])
 case class MyStructWithNullValue(a: Option[Long], b: Array[Long])
 
 class UDFPartialProjectSuite extends WholeStageTransformerSuite {
+  private val columnarPartialProjectExecClassName =
+    "org.apache.gluten.execution.ColumnarPartialProjectExec"
+
   disableFallbackCheck
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
@@ -69,7 +73,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
 
   ignore("test plus_one") {
     runQueryAndCompare("SELECT sum(plus_one(cast(l_orderkey as long))) from lineitem") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -78,20 +82,20 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       "select plus_one(" +
         "(select plus_one(count(*)) from (values (1)) t0(inner_c))) as col " +
         "from (values (2),(3)) t1(outer_c)") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
   ignore("test plus_one with column used twice") {
     runQueryAndCompare(
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_orderkey)) from lineitem") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
   ignore("test plus_one without cast") {
     runQueryAndCompare("SELECT sum(plus_one(l_orderkey) + hash(l_orderkey)) from lineitem") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -100,7 +104,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_partkey))" +
         "from lineitem " +
         "where l_orderkey < 3") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -110,25 +114,23 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                 | select plus_one(l_orderkey) as col1, l_partkey from lineitem
                 |)""".stripMargin
     runQueryAndCompare(sql) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
 
     val df = spark.sql(sql)
-    assert(df.queryExecution.executedPlan.collect {
-      case p: ColumnarPartialProjectExec => p
-    }.size == 2)
+    assert(countColumnarPartialProjectExec(df) == 2)
   }
 
   test("test plus_one with many columns in project") {
     runQueryAndCompare("SELECT plus_one(cast(l_orderkey as long)), hash(l_partkey) from lineitem") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
   ignore("test function no argument") {
     runQueryAndCompare("""SELECT no_argument(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -138,14 +140,14 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     df.collect()
     assert(
       df.queryExecution.executedPlan
-        .find(p => p.isInstanceOf[ColumnarPartialProjectExec])
+        .find(loadPlanClass(columnarPartialProjectExecClassName).isInstance)
         .isEmpty)
   }
 
   test("udf in agg simple") {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) + hash(l_orderkey) ) as revenue
                          | from   lineitem""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -153,13 +155,13 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) * l_discount
                          | + hash(l_orderkey) + hash(l_comment)) as revenue
                          | from   lineitem""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
   test("test concat with string") {
     runQueryAndCompare("SELECT concat_concat(l_comment), hash(l_partkey) from lineitem") {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -175,7 +177,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | GROUP BY l_partkey
                          |)
                          |""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -196,7 +198,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | FROM lineitem
                          |)
                          |""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
 
@@ -215,7 +217,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | FROM lineitem
                          |)
                          |""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
     }
   }
   // only SparkVersion >= 3.4 support columnar native writer
@@ -241,7 +243,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                                  |""".stripMargin) {
 
               if (enableNativeScanAndWriter.toBoolean) {
-                checkGlutenPlan[ColumnarPartialProjectExec]
+                checkColumnarPartialProjectExec
               } else {
                 checkSparkPlan[ProjectExec]
               }
@@ -270,7 +272,32 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | FROM lineitem
                          |)
                          |""".stripMargin) {
-      checkGlutenPlan[ColumnarPartialProjectExec]
+      checkColumnarPartialProjectExec
+    }
+  }
+
+  private def checkColumnarPartialProjectExec(df: DataFrame): Unit = {
+    val planClass = loadPlanClass(columnarPartialProjectExecClassName)
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      executedPlan.exists(planClass.isInstance),
+      s"Expect ${planClass.getSimpleName} exists in executedPlan:\n ${executedPlan.last}"
+    )
+  }
+
+  private def countColumnarPartialProjectExec(df: DataFrame): Int = {
+    val planClass = loadPlanClass(columnarPartialProjectExecClassName)
+    getExecutedPlan(df).count(planClass.isInstance)
+  }
+
+  private def loadPlanClass(className: String): Class[_] = {
+    try {
+      // scalastyle:off classforname
+      Class.forName(className)
+      // scalastyle:on classforname
+    } catch {
+      case e: ClassNotFoundException =>
+        fail(s"$className is not available on current backend classpath", e)
     }
   }
 }
