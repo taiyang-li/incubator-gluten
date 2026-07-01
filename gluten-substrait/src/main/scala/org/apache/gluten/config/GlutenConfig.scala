@@ -158,10 +158,10 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     getConf(PUSH_AGGREGATE_THROUGH_JOIN_MAX_DEPTH)
 
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
-    getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
+    getConf(FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
 
   def scanFileSchemeValidationEnabled: Boolean =
-    getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
+    getConf(SCAN_FILE_SCHEME_VALIDATION_ENABLED)
 
   // Whether to use GlutenShuffleManager (experimental).
   def isUseGlutenShuffleManager: Boolean =
@@ -288,6 +288,14 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableColumnarCartesianProduct: Boolean =
     getConf(COLUMNAR_CARTESIAN_PRODUCT_ENABLED)
 
+  def parquetWriterBufferGrowRatio: Double = getConf(GLUTEN_PARQUET_WRITER_BUFFER_GROW_RATIO)
+
+  def parquetWriterBufferReserveRatio: Double =
+    getConf(GLUTEN_PARQUET_WRITER_BUFFER_RESERVE_RATIO)
+
+  def cartesianProductTransformerEnabled: Boolean =
+    getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
+
   def enableColumnarBroadcastNestedLoopJoin: Boolean =
     getConf(COLUMNAR_BROADCAST_NESTED_LOOP_JOIN_ENABLED)
 
@@ -349,12 +357,19 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def textIputEmptyAsDefault: Boolean = getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
 
+  def enableParquetRowGroupMaxMinIndex: Boolean =
+    getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
+
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = getConf(NATIVE_WRITER_ENABLED)
 
   def enableColumnarProjectCollapse: Boolean = getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
   def enableColumnarPartialProject: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
+
+  def enableColumnarProjectPushdown: Boolean = getConf(ENABLE_COLUMNAR_PROJECT_PUSHDOWN)
+
+  def enableColumnarProjectRemove: Boolean = getConf(ENABLE_COLUMNAR_PROJECT_REMOVE)
 
   def enableColumnarPartialGenerate: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_GENERATE)
 
@@ -412,6 +427,7 @@ object GlutenConfig extends ConfigRegistry {
   val PARQUET_DATAPAGE_SIZE: String = "parquet.page.size"
   val PARQUET_ENABLE_DICTIONARY: String = "parquet.enable.dictionary"
   val PARQUET_WRITER_VERSION: String = "parquet.writer.version"
+  val PARQUET_ROW_NUM_IN_EACH_BLOCK: String = "parquet.block.rowNumInEachBlock"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -472,6 +488,38 @@ object GlutenConfig extends ConfigRegistry {
   val SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT: Boolean = true
   val SPARK_MAX_BROADCAST_TABLE_SIZE = "spark.sql.maxBroadcastTableSize"
 
+  val SPARK_EXECUTOR_CORES = "spark.executor.cores"
+  val SPARK_VCORE_BOOST_RATIO = "spark.vcore.boost.ratio"
+  val GLUTEN_PARALLEL_ENABLED_KEY = "spark.gluten.parallel.enabled"
+  val GLUTEN_PARALLEL_ENABLED_KEY_DEFAULT = false
+  val USE_BOLT_MEMORY_MANAGER_KEY = "spark.gluten.useBoltMemoryManager"
+  val BOLT_MEMORY_MANAGER_MAX_WAIT_TIME_WHEN_FREE_KEY =
+    "spark.gluten.boltMemoryManager.maxWaitTimeWhenFree"
+  val BOLT_EXECUTION_POOL_MIN_MEMORY_MAX_WAIT_TIME_KEY =
+    "spark.gluten.boltExecutionPool.minMemoryMaxWaitTime"
+
+  val GLUTEN_PREFETCH_MEMORY_PERCENT_CONF = "spark.gluten.bolt.prefetch.memory.percent"
+  val GLUTEN_PRELOAD_ENABLED_CONF = "spark.gluten.sql.columnar.backend.bolt.preload.enabled"
+
+  // Shuffle batch byte size.
+  val GLUTEN_MAX_SHUFFLE_BATCH_BYTE_SIZE_KEY = "spark.gluten.sql.columnar.maxShuffleBatchByteSize"
+
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_DECRYPT_ENABLED =
+    "spark.hadoop.parquet.encryption.decrypt.enabled"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_INS_URL =
+    "spark.hadoop.parquet.encryption.kms.instance.url"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_INS_ID = "spark.hadoop.parquet.encryption.kms.instance.id"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_ACCESS_TOKEN =
+    "spark.hadoop.parquet.encryption.key.access.token"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_CACHE_LIFETIME_SECONDS =
+    "spark.hadoop.parquet.encryption.cache.lifetime.seconds"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_MAX_RETRY_TIMES =
+    "spark.hadoop.parquet.encryption.kms.client.max.retry.times"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_INSTANCE_VERSION =
+    "spark.hadoop.parquet.encryption.kms.instance.version"
+  val SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_CLIENT_CLASS =
+    "spark.hadoop.parquet.encryption.kms.client.class"
+
   def get: GlutenConfig = {
     new GlutenConfig(GlutenCoreConfig.activeSQLConf)
   }
@@ -495,6 +543,9 @@ object GlutenConfig extends ConfigRegistry {
     SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key,
     "spark.io.compression.codec",
     "spark.sql.decimalOperations.allowPrecisionLoss",
+    "spark.gluten.sql.columnar.backend.bolt.bloomFilter.expectedNumItems",
+    "spark.gluten.sql.columnar.backend.bolt.bloomFilter.numBits",
+    "spark.gluten.sql.columnar.backend.bolt.bloomFilter.maxNumBits",
     // s3 config
     SPARK_S3_ACCESS_KEY,
     SPARK_S3_SECRET_KEY,
@@ -513,6 +564,12 @@ object GlutenConfig extends ConfigRegistry {
     "spark.gluten.velox.s3UseProxyFromEnv",
     "spark.gluten.velox.s3PayloadSigningPolicy",
     "spark.gluten.velox.s3LogLocation",
+    "spark.gluten.bolt.fs.s3a.connect.timeout",
+    "spark.gluten.bolt.fs.s3a.retry.mode",
+    "spark.gluten.bolt.awsSdkLogLevel",
+    "spark.gluten.bolt.s3UseProxyFromEnv",
+    "spark.gluten.bolt.s3PayloadSigningPolicy",
+    "spark.gluten.bolt.s3LogLocation",
     // gcs config
     SPARK_GCS_STORAGE_ROOT_URL,
     SPARK_GCS_AUTH_TYPE,
@@ -530,7 +587,44 @@ object GlutenConfig extends ConfigRegistry {
     "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
     "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks",
     "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes",
-    "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan"
+    "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan",
+    "spark.gluten.sql.columnar.backend.bolt.queryTraceEnabled",
+    "spark.gluten.sql.columnar.backend.bolt.queryTraceDir",
+    "spark.gluten.sql.columnar.backend.bolt.queryTraceNodeIds",
+    "spark.gluten.sql.columnar.backend.bolt.queryTraceMaxBytes",
+    "spark.gluten.sql.columnar.backend.bolt.queryTraceTaskRegExp",
+    "spark.gluten.sql.columnar.backend.bolt.opTraceDirectoryCreateConfig",
+    "spark.gluten.sql.columnar.backend.bolt.enableUserExceptionStacktrace",
+    "spark.gluten.sql.columnar.backend.bolt.enableSystemExceptionStacktrace",
+    "spark.gluten.sql.columnar.backend.bolt.memoryUseHugePages",
+    "spark.gluten.sql.columnar.backend.bolt.cachePrefetchMinPct",
+    "spark.gluten.sql.columnar.backend.bolt.memoryPoolCapacityTransferAcrossTasks",
+    "spark.gluten.sql.columnar.backend.bolt.preferredBatchBytes",
+    "spark.gluten.sql.columnar.backend.bolt.cudf.enableTableScan",
+
+    // multi-thread spark
+    GLUTEN_PARALLEL_ENABLED_KEY,
+
+    // bolt memory manager related
+    USE_BOLT_MEMORY_MANAGER_KEY,
+    GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
+    BOLT_MEMORY_MANAGER_MAX_WAIT_TIME_WHEN_FREE_KEY,
+    BOLT_EXECUTION_POOL_MIN_MEMORY_MAX_WAIT_TIME_KEY,
+    "spark.gluten.memory.overAcquiredMemoryRatio",
+    "spark.gluten.boltMemoryManager.enableDynamicMemoryQuotaManager",
+    "spark.gluten.boltMemoryManager.dynamicMemoryQuotaManager.ratios",
+    GLUTEN_MAX_SHUFFLE_BATCH_BYTE_SIZE_KEY,
+    "spark.gluten.sql.columnar.backend.bolt.useICURegex",
+
+    // parquet encryption related
+    SPARK_HADOOP_PARQUET_ENCRYPTION_DECRYPT_ENABLED,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_INS_URL,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_INS_ID,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_ACCESS_TOKEN,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_CACHE_LIFETIME_SECONDS,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_MAX_RETRY_TIMES,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_INSTANCE_VERSION,
+    SPARK_HADOOP_PARQUET_ENCRYPTION_KMS_CLIENT_CLASS
   )
 
   /** Get dynamic configs. */
@@ -631,9 +725,16 @@ object GlutenConfig extends ConfigRegistry {
       (SPARK_S3_RETRY_MAX_ATTEMPTS, "20"),
       (SPARK_S3_CONNECTION_MAXIMUM, "15"),
       ("spark.gluten.velox.fs.s3a.retry.mode", "legacy"),
+      ("spark.gluten.bolt.fs.s3a.connect.timeout", "200s"),
+      ("spark.gluten.bolt.fs.s3a.retry.mode", "legacy"),
       (
         GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR.key,
         GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString),
+      (
+        "spark.gluten.sql.columnar.backend.bolt.IOThreads",
+        conf.getOrElse(
+          GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR.key,
+          GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       (DEBUG_CUDF.key, DEBUG_CUDF.defaultValueString),
@@ -644,10 +745,15 @@ object GlutenConfig extends ConfigRegistry {
       ("spark.sql.orc.compression.codec", "snappy"),
       ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       ("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled", "false"),
+      ("spark.gluten.sql.columnar.backend.bolt.fileHandleCacheEnabled", "false"),
       ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
       ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
       ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
-      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
+      ("spark.gluten.bolt.awsSdkLogLevel", "FATAL"),
+      ("spark.gluten.bolt.s3UseProxyFromEnv", "false"),
+      ("spark.gluten.bolt.s3PayloadSigningPolicy", "Never"),
+      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString),
+      (GLUTEN_PARALLEL_ENABLED_KEY, "false")
     ).foreach { case (k, defaultValue) => nativeConfMap.put(k, conf.getOrElse(k, defaultValue)) }
 
     val keys = Set(
@@ -656,6 +762,8 @@ object GlutenConfig extends ConfigRegistry {
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       SQLConf.PARQUET_WRITE_LEGACY_FORMAT.key,
       // datasource config end
+      GLUTEN_PARQUET_WRITER_BUFFER_GROW_RATIO.key,
+      GLUTEN_PARQUET_WRITER_BUFFER_RESERVE_RATIO.key,
       GlutenCoreConfig.COLUMNAR_OVERHEAD_SIZE_IN_BYTES.key,
       GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
       GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
@@ -664,7 +772,10 @@ object GlutenConfig extends ConfigRegistry {
       SPARK_REDACTION_REGEX,
       SQLConf.LEGACY_TIME_PARSER_POLICY.key,
       SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-      COLUMNAR_CUDF_ENABLED.key
+      COLUMNAR_CUDF_ENABLED.key,
+      SPARK_EXECUTOR_CORES,
+      SPARK_VCORE_BOOST_RATIO,
+      GLUTEN_PARALLEL_ENABLED_KEY
     )
 
     nativeConfMap ++= conf.filter { case (k, _) => keys.contains(k) }
@@ -1494,6 +1605,20 @@ object GlutenConfig extends ConfigRegistry {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_COLUMNAR_PROJECT_PUSHDOWN =
+    buildConf("spark.gluten.sql.columnar.project.pushdown")
+      .internal()
+      .doc("Splits project to function and field access and pushdown function before generate")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENABLE_COLUMNAR_PROJECT_REMOVE =
+    buildConf("spark.gluten.sql.columnar.project.remove")
+      .internal()
+      .doc("remove unnecessary project before generate")
+      .booleanConf
+      .createWithDefault(false)
+
   val ENABLE_COLUMNAR_PARTIAL_GENERATE =
     buildConf("spark.gluten.sql.columnar.partial.generate")
       .doc("Evaluates the non-offload-able HiveUDTF using vanilla Spark generator")
@@ -1556,13 +1681,15 @@ object GlutenConfig extends ConfigRegistry {
       .booleanConf
       .createWithDefault(false)
 
-  val VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK =
+  val FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK =
     buildConf("spark.gluten.sql.orc.charType.scan.fallback.enabled")
       .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
 
-  val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
+  val VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK = FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK
+
+  val SCAN_FILE_SCHEME_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
       .doc(
         "When true, enable file path scheme validation for scan. Validation will fail if" +
@@ -1570,6 +1697,8 @@ object GlutenConfig extends ConfigRegistry {
           " operator fall back.")
       .booleanConf
       .createWithDefault(true)
+
+  val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED = SCAN_FILE_SCHEME_VALIDATION_ENABLED
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
     buildConf("spark.gluten.sql.columnar.cast.avg").booleanConf
@@ -1696,4 +1825,82 @@ object GlutenConfig extends ConfigRegistry {
           "total size of small files is below this threshold.")
       .doubleConf
       .createWithDefault(0.5)
+
+  val GLUTEN_PARALLEL_ENABLED =
+    buildConf(GLUTEN_PARALLEL_ENABLED_KEY)
+      .internal()
+      .doc("Enable parallel executio of Bolt tasks in Gluten")
+      .booleanConf
+      .createWithDefault(GLUTEN_PARALLEL_ENABLED_KEY_DEFAULT)
+  val GLUTEN_PARQUET_WRITER_BUFFER_GROW_RATIO =
+    buildConf("spark.gluten.sql.parquet.writer.bufferGrowRatio")
+      .internal()
+      .doubleConf
+      .createWithDefault(1)
+  val GLUTEN_PARQUET_WRITER_BUFFER_RESERVE_RATIO =
+    buildConf("spark.gluten.sql.parquet.writer.bufferReserveRatio")
+      .internal()
+      .doubleConf
+      .createWithDefault(0)
+
+  val CARTESIAN_PRODUCT_TRANSFORMER_ENABLED =
+    buildConf("spark.gluten.sql.cartesianProductTransformerEnabled")
+      .doc("Config to enable CartesianProductExecTransformer.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED =
+    buildConf("spark.gluten.sql.broadcastNestedLoopJoinTransformerEnabled")
+      .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val EXTENDED_COLUMNAR_TRANSFORM_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
+      .internal()
+      .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
+      .doc("A comma-separated list of classes for the extended columnar transform rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_COLUMNAR_POST_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
+      .internal()
+      .doc("A comma-separated list of classes for the extended columnar post rules.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val EXTENDED_EXPRESSION_TRAN_CONF =
+    buildConf("spark.gluten.sql.columnar.extended.expressions.transformer")
+      .internal()
+      .doc("A class for the extended expressions transformer.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
+    buildConf("spark.gluten.sql.parquet.maxmin.index")
+      .internal()
+      .doc("Enable row group max min index for parquet file scan")
+      .booleanConf
+      .createWithDefault(false)
+
+  val NATIVE_ARROW_READER_ENABLED =
+    buildConf("spark.gluten.sql.native.arrow.reader.enabled")
+      .doc("This is config to specify whether to enable the native columnar csv reader")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
+    buildConf("spark.gluten.sql.fallbackEncryptedParquet")
+      .doc("If enabled, gluten will not offload scan when encrypted parquet files are detected")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT =
+    buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
+      .doc("If supplied, `limit` number of files will be checked to determine encryption " +
+        "and falling back java scan")
+      .intConf
+      .checkValue(_ > 0, s"must be positive.")
+      .createWithDefault(10)
 }

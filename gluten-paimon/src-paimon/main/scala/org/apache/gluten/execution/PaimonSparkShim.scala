@@ -25,11 +25,36 @@ import org.apache.paimon.utils.InternalRowPartitionComputer
 
 trait PaimonSparkShim extends Logging {
 
+  /**
+   * @return
+   *   whether the split is a ChainDataSplit. This class is not available with some spark/paimon
+   *   version combinations.
+   */
   def isChainSplit(split: DataSplit): Boolean
 
+  /**
+   * @param split
+   *   input split
+   * @return
+   *   the partition representation for this particular split
+   */
   def getSplitPartition(split: DataSplit): org.apache.paimon.data.InternalRow
 
+  /**
+   * @param split
+   *   the input split
+   * @param file
+   *   the file metadata from within the split
+   * @return
+   *   A string representing the filesystem URI to the bucket of the input file
+   */
   def getBucketPath(split: DataSplit, file: DataFileMeta): String
 
+  /**
+   * @param scan
+   *   the spark scan
+   * @return
+   *   an implementation of Paimon's {@link InternalRowPartitionComputer}
+   */
   def getInternalPartitionComputer(scan: PaimonScan): InternalRowPartitionComputer
 }
