@@ -16,21 +16,16 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.velox.{VeloxBatchType, VeloxCarrierRowType}
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
-import org.apache.spark.sql.execution.SparkPlan
+/** Shared implementation for backend-specific carrier row types. */
+abstract class SharedCarrierRowType extends Convention.RowType {
 
-case class VeloxColumnarToCarrierRowExec(override val child: SparkPlan)
-  extends SharedColumnarToCarrierRowExec(child) {
-  override protected def backendBatchType: Convention.BatchType = VeloxBatchType
-  override protected def backendRowType: Convention.RowType = VeloxCarrierRowType
-  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-    copy(child = newChild)
-}
+  protected def backendBatchType: Convention.BatchType
 
-object VeloxColumnarToCarrierRowExec {
-  def enforce(child: SparkPlan): SparkPlan = {
-    SharedColumnarToCarrierRowExec.enforce(child, VeloxCarrierRowType)
+  protected def toCarrierRowTransition: Transition
+
+  override protected[this] def registerTransitions(): Unit = {
+    fromBatch(backendBatchType, toCarrierRowTransition)
   }
 }

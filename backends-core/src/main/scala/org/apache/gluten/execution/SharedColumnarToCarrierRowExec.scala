@@ -16,21 +16,25 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.velox.{VeloxBatchType, VeloxCarrierRowType}
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq, Transitions}
 
 import org.apache.spark.sql.execution.SparkPlan
 
-case class VeloxColumnarToCarrierRowExec(override val child: SparkPlan)
-  extends SharedColumnarToCarrierRowExec(child) {
-  override protected def backendBatchType: Convention.BatchType = VeloxBatchType
-  override protected def backendRowType: Convention.RowType = VeloxCarrierRowType
-  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-    copy(child = newChild)
+/** Shared implementation for backend-specific `ColumnarToCarrierRowExec` wrappers. */
+abstract class SharedColumnarToCarrierRowExec(child: SparkPlan)
+  extends ColumnarToCarrierRowExecBase {
+
+  protected def backendBatchType: Convention.BatchType
+
+  protected def backendRowType: Convention.RowType
+
+  override protected def fromBatchType(): Convention.BatchType = backendBatchType
+
+  override def rowType(): Convention.RowType = backendRowType
 }
 
-object VeloxColumnarToCarrierRowExec {
-  def enforce(child: SparkPlan): SparkPlan = {
-    SharedColumnarToCarrierRowExec.enforce(child, VeloxCarrierRowType)
+object SharedColumnarToCarrierRowExec {
+  def enforce(child: SparkPlan, rowType: Convention.RowType): SparkPlan = {
+    Transitions.enforceReq(child, ConventionReq.ofRow(ConventionReq.RowType.Is(rowType)))
   }
 }
