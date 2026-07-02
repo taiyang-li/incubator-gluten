@@ -203,7 +203,7 @@ AI 侧主要负责：
 1. Spark 4.0 Dynamic Partition Pruning suite 对齐 `fake_main`，避免 Bolt 旧改动倒退社区现状。
 2. Collection expressions suite 中对重复 map key 的注释改为后端中立表述，例如 `Velox/Bolt`。
 3. `GlutenFallbackSuite` 中 FULL OUTER JOIN fallback 断言按后端拆分：Velox 保持社区语义，Bolt 使用自己的断言。
-4. 删除 Bolt 曾引入的不合适的全局 `RAS_ENABLED=false`，避免影响 Velox 原有 fallback 行为。
+4. 删除 Bolt 曾引入的不合适的全局 RAS 开关配置，避免影响 Velox 原有 fallback 行为。
 
 ### 4.4 benchmark data 去重方案已完成并进入 `fake_main` patch 集
 

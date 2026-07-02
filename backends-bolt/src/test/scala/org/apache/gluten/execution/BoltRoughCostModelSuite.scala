@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
@@ -41,8 +41,7 @@ class BoltRoughCostModelSuite extends BoltWholeStageTransformerSuite {
   }
 
   override protected def sparkConf: SparkConf = super.sparkConf
-    .set(GlutenConfig.RAS_ENABLED.key, "true")
-    .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
+    .set(GlutenCoreConfig.GLUTEN_COST_MODEL.key, "rough")
     .set(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key, "false")
 
   test("fallback trivial project if its neighbor nodes fell back") {
