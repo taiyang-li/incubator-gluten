@@ -91,6 +91,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
     memory/BoltGlutenMemoryManager.cc
+    threads/ThreadInitializer.cc
+    threads/ThreadManager.cc
     shuffle/Dictionary.cc
     shuffle/FallbackRangePartitioner.cc
     shuffle/HashPartitioner.cc
@@ -106,6 +108,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/Spill.cc
     shuffle/Utils.cc
     utils/Compression.cc
+    utils/tac/FForCodec.cc
+    utils/tac/TypeAwareCompressCodec.cc
     utils/StringUtil.cc
     utils/ObjectStore.cc
     utils/ConfigResolver.cc

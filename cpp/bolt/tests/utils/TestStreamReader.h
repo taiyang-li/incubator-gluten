@@ -17,4 +17,21 @@
 
 #pragma once
 
-#include "../../../core/tests/utils/TestStreamReader.h"
+#include "shuffle/ShuffleReader.h"
+#include "shuffle/ShuffleWriter.h"
+
+namespace gluten {
+
+class TestStreamReader : public StreamReader {
+ public:
+  explicit TestStreamReader(const std::shared_ptr<arrow::io::InputStream>& inputStream) : inputStream_(inputStream) {}
+
+  std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool*) override {
+    return std::move(inputStream_);
+  }
+
+ private:
+  std::shared_ptr<arrow::io::InputStream> inputStream_;
+};
+
+} // namespace gluten

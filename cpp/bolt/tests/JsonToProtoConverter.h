@@ -17,4 +17,10 @@
 
 #pragma once
 
-#include "../../core/tests/JsonToProtoConverter.h"
+#include <google/protobuf/util/json_util.h>
+
+class JsonToProtoConverter {
+ public:
+  /// Reconstruct Protobuf message from Json file.
+  static void readFromFile(const std::string& msgPath, google::protobuf::Message& msg);
+};

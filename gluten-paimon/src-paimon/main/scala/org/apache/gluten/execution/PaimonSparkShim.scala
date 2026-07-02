@@ -51,6 +51,13 @@ trait PaimonSparkShim extends Logging {
   def getBucketPath(split: DataSplit, file: DataFileMeta): String
 
   /**
+   * Older Paimon versions expose change-log "before files" on [[DataSplit]], while newer versions
+   * removed that accessor. Use a shim so callers can keep the semantic check without directly
+   * binding to one concrete Paimon API surface.
+   */
+  def hasBeforeFiles(split: DataSplit): Boolean
+
+  /**
    * @param scan
    *   the spark scan
    * @return

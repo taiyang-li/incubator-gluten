@@ -29,6 +29,15 @@ import scala.collection.JavaConverters._
 
 class PaimonSparkShimImpl extends PaimonSparkShim {
 
+  override def hasBeforeFiles(split: DataSplit): Boolean = {
+    try {
+      val method = split.getClass.getMethod("beforeFiles")
+      !method.invoke(split).asInstanceOf[java.util.Collection[_]].isEmpty
+    } catch {
+      case _: NoSuchMethodException => false
+    }
+  }
+
   override def isChainSplit(split: DataSplit): Boolean = false
 
   override def getSplitPartition(split: DataSplit): InternalRow = split.partition()

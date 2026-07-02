@@ -19,21 +19,22 @@ package org.apache.gluten.component
 import org.apache.gluten.backendsapi.bolt.BoltBackend
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.{DeltaPostTransformRules, OffloadDeltaFilter, OffloadDeltaProject, OffloadDeltaScan}
-import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
-import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, ProjectExec}
+import org.apache.spark.util.SparkReflectionUtil
 
 class BoltDeltaComponent extends Component {
   override def name(): String = "bolt-delta"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("BoltDelta", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[BoltBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    SparkReflectionUtil.isClassPresent("io.delta.sql.DeltaSparkSessionExtension")
+  }
+
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
-    val ras = injector.gluten.ras
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadDeltaScan(), OffloadDeltaProject(), OffloadDeltaFilter())
@@ -42,19 +43,8 @@ class BoltDeltaComponent extends Component {
           Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
           offload)
     }
-    val offloads: Seq[RasOffload] = Seq(
-      RasOffload.from[FileSourceScanExec](OffloadDeltaScan()),
-      RasOffload.from[ProjectExec](OffloadDeltaProject()),
-      RasOffload.from[FilterExec](OffloadDeltaFilter())
-    )
-    offloads.foreach(
-      offload =>
-        ras.injectRasRule(
-          c => RasOffload.Rule(offload, Validators.newValidator(new GlutenConfig(c.sqlConf)), Nil)))
     DeltaPostTransformRules.rules.foreach {
-      r =>
-        legacy.injectPostTransform(_ => r)
-        ras.injectPostTransform(_ => r)
+      r => legacy.injectPostTransform(_ => r)
     }
   }
 }

@@ -15,4 +15,24 @@
  * limitations under the License.
  */
 
-#include "../../core/tests/JsonToProtoConverter.cc"
+#include "JsonToProtoConverter.h"
+
+#include <cerrno>
+#include <cstring>
+#include <fstream>
+#include <sstream>
+
+#include "utils/Exception.h"
+
+void JsonToProtoConverter::readFromFile(const std::string& msgPath, google::protobuf::Message& msg) {
+  std::ifstream msgJson(msgPath);
+  GLUTEN_CHECK(!msgJson.fail(), std::string("Failed to open file: ") + msgPath + ". " + std::strerror(errno));
+  std::stringstream buffer;
+  buffer << msgJson.rdbuf();
+  std::string msgData = buffer.str();
+  auto status = google::protobuf::util::JsonStringToMessage(msgData, &msg);
+  GLUTEN_CHECK(
+      status.ok(),
+      std::string("Failed to parse Substrait JSON: ") + std::to_string(static_cast<int8_t>(status.code())) +
+          " " + status.message().ToString());
+}

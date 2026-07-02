@@ -65,9 +65,6 @@ static jmethodID shuffleReaderMetricsSetDeserializeTime;
 static jclass splitResultClass;
 static jmethodID splitResultConstructor;
 
-static jclass columnarBatchSerializeResultClass;
-static jmethodID columnarBatchSerializeResultConstructor;
-
 namespace {
 jclass infoCls;
 jmethodID infoClsInitMethod;
@@ -113,11 +110,6 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/shuffle/BoltSplitResult;");
   splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJJJJJJJJ[J[J)V");
 
-  columnarBatchSerializeResultClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
-  columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[[B)V");
-
   DLOG(INFO) << "Loaded Bolt backend.";
 
   return jniVersion;
@@ -128,7 +120,6 @@ void JNI_OnUnload(JavaVM* vm, void*) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
 
   env->DeleteGlobalRef(splitResultClass);
-  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
   env->DeleteGlobalRef(blockStripesClass);
   env->DeleteGlobalRef(infoCls);

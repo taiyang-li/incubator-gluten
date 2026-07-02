@@ -17,4 +17,9 @@
 
 #pragma once
 
-#include "../../core/tests/FilePathGenerator.h"
+#include <string>
+
+class FilePathGenerator {
+ public:
+  static const std::string getDataFilePath(const std::string& fileName);
+};

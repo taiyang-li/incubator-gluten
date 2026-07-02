@@ -176,7 +176,7 @@ abstract class AbstractPaimonScanTransformer(
           case paimonPartition: PaimonInputPartition =>
             paimonPartition.splits.zipWithIndex.foreach {
               case (split: DataSplit, splitIdx) =>
-                if (!split.beforeFiles().isEmpty) {
+                if (shim.hasBeforeFiles(split)) {
                   throw new UnsupportedOperationException("Do not support before files")
                 }
                 val partitionRow =

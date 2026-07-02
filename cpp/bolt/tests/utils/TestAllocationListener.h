@@ -17,4 +17,50 @@
 
 #pragma once
 
-#include "../../../core/tests/utils/TestAllocationListener.h"
+#include "compute/ResultIterator.h"
+#include "memory/AllocationListener.h"
+#include "shuffle/ShuffleWriter.h"
+
+namespace gluten {
+
+// Instance with limited capacity, used by tests and benchmarks.
+class TestAllocationListener final : public AllocationListener {
+ public:
+  TestAllocationListener() = default;
+
+  void setThrowIfOOM(bool throwIfOOM) {
+    throwIfOOM_ = throwIfOOM;
+  }
+
+  void updateLimit(uint64_t limit) {
+    limit_ = limit;
+  }
+
+  void setIterator(ResultIterator* iterator) {
+    iterator_ = iterator;
+  }
+
+  void setShuffleWriter(ShuffleWriter* shuffleWriter) {
+    shuffleWriter_ = shuffleWriter;
+  }
+
+  void allocationChanged(int64_t diff) override;
+
+  int64_t currentBytes() override;
+
+  int64_t reclaimedBytes() const;
+
+  void reset();
+
+ private:
+  bool throwIfOOM_{false};
+
+  uint64_t usedBytes_{0L};
+  uint64_t reclaimedBytes_{0L};
+
+  uint64_t limit_{std::numeric_limits<uint64_t>::max()};
+  ResultIterator* iterator_{nullptr};
+  ShuffleWriter* shuffleWriter_{nullptr};
+};
+
+} // namespace gluten

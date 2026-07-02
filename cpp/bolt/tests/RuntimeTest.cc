@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 #include "compute/BoltBackend.h"
 #include "memory.pb.h"
+#include "threads/ThreadInitializer.h"
 
 namespace gluten {
 
@@ -47,13 +48,27 @@ class DummyMemoryManager final : public MemoryManager {
 
 inline static const std::string kDummyBackendKind{"dummy"};
 
+class DummyThreadManager final : public ThreadManager {
+ public:
+  explicit DummyThreadManager(const std::string& kind) : ThreadManager(kind), initializer_(ThreadInitializer::noop()) {}
+
+  ThreadInitializer* getThreadInitializer() override {
+    return initializer_.get();
+  }
+
+ private:
+  std::shared_ptr<ThreadInitializer> initializer_;
+};
+
 class DummyRuntime final : public Runtime {
  public:
   DummyRuntime(
       const std::string& kind,
       DummyMemoryManager* mm,
-      const std::unordered_map<std::string, std::string>& conf, int64_t taskId)
-      : Runtime(kind, mm, conf, taskId) {}
+      ThreadManager* tm,
+      const std::unordered_map<std::string, std::string>& conf,
+      int64_t taskId)
+      : Runtime(kind, mm, tm, conf, taskId) {}
 
   void parsePlan(const uint8_t* data, int32_t size) override {}
 
@@ -61,12 +76,16 @@ class DummyRuntime final : public Runtime {
 
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
-      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf) override {
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs) override {
     auto resIter = std::make_unique<DummyResultIterator>();
     auto iter = std::make_shared<ResultIterator>(std::move(resIter));
     return iter;
   }
+
+  void noMoreSplits(ResultIterator* iter) override {
+    // Do nothing.
+  }
+
   MemoryManager* memoryManager() override {
     throw GlutenException("Not yet implemented");
   }
@@ -124,8 +143,10 @@ class DummyRuntime final : public Runtime {
 static Runtime* dummyRuntimeFactory(
     const std::string& kind,
     MemoryManager* mm,
-    const std::unordered_map<std::string, std::string> conf, int64_t taskId) {
-  return new DummyRuntime(kind, dynamic_cast<DummyMemoryManager*>(mm), conf, taskId);
+    ThreadManager* tm,
+    const std::unordered_map<std::string, std::string>& conf,
+    int64_t taskId) {
+  return new DummyRuntime(kind, dynamic_cast<DummyMemoryManager*>(mm), tm, conf, taskId);
 }
 
 static void dummyRuntimeReleaser(Runtime* runtime) {
@@ -135,7 +156,8 @@ static void dummyRuntimeReleaser(Runtime* runtime) {
 TEST(TestRuntime, CreateRuntime) {
   Runtime::registerFactory(kDummyBackendKind, dummyRuntimeFactory, dummyRuntimeReleaser);
   DummyMemoryManager mm(kDummyBackendKind);
-  auto runtime = Runtime::create(kDummyBackendKind, &mm, 1);
+  DummyThreadManager tm(kDummyBackendKind);
+  auto runtime = Runtime::create(kDummyBackendKind, &mm, &tm, {}, 1);
   ASSERT_EQ(typeid(*runtime), typeid(DummyRuntime));
   Runtime::release(runtime);
 }
@@ -143,15 +165,20 @@ TEST(TestRuntime, CreateRuntime) {
 TEST(TestRuntime, CreateBoltRuntime) {
   BoltBackend::create(AllocationListener::noop(), {{kSparkOffHeapMemory, "7516192768"}});
   auto mm = MemoryManager::create(kBoltBackendKind, AllocationListener::noop(), "test-bolt-runtime");
-  auto runtime = Runtime::create(kBoltBackendKind, mm, 1, {{kSparkOffHeapMemory, "7516192768"}});
+  auto tm = ThreadManager::create(kBoltBackendKind, ThreadInitializer::noop());
+  auto runtime = Runtime::create(kBoltBackendKind, mm, tm, {{kSparkOffHeapMemory, "7516192768"}}, 1);
   ASSERT_EQ(typeid(*runtime), typeid(BoltRuntime));
   Runtime::release(runtime);
+  ThreadManager::release(tm);
 }
 
 TEST(TestRuntime, GetResultIterator) {
   DummyMemoryManager mm(kDummyBackendKind);
-  auto runtime = std::make_shared<DummyRuntime>(kDummyBackendKind, &mm, std::unordered_map<std::string, std::string>(), 1);
-  auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {});
+  DummyThreadManager tm(kDummyBackendKind);
+  auto runtime =
+      std::make_shared<DummyRuntime>(kDummyBackendKind, &mm, &tm, std::unordered_map<std::string, std::string>(), 1);
+  auto iter = runtime->createResultIterator("/tmp/test-spill", {});
+  runtime->noMoreSplits(iter.get());
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

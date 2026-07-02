@@ -18,6 +18,7 @@
 #include "JsonToProtoConverter.h"
 
 #include <filesystem>
+#include "bolt/connectors/hive/HiveConnectorSplit.h"
 #include "compute/BoltPlanConverter.h"
 #include "substrait/SubstraitToBoltPlan.h"
 #include "bolt/common/base/tests/GTestUtils.h"
@@ -58,7 +59,8 @@ class Substrait2BoltPlanConversionTest : public exec::test::HiveConnectorTestBas
       auto path = fmt::format("{}{}", tmpDir_->getPath(), paths[i]);
       auto start = starts[i];
       auto length = lengths[i];
-      auto split = bytedance::bolt::exec::test::HiveConnectorSplitBuilder(path)
+      auto split = HiveConnectorSplitBuilder(path)
+                       .connectorId(exec::test::kHiveConnectorId)
                        .fileFormat(fileFormat)
                        .start(start)
                        .length(length)

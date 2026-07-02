@@ -85,6 +85,27 @@ void boltMemoryManagerReleaser(MemoryManager* memoryManager) {
   delete memoryManager;
 }
 
+class BoltThreadManager : public ThreadManager {
+ public:
+  BoltThreadManager(const std::string& kind, std::unique_ptr<ThreadInitializer> initializer)
+      : ThreadManager(kind), initializer_(std::shared_ptr<ThreadInitializer>(std::move(initializer))) {}
+
+  ThreadInitializer* getThreadInitializer() override {
+    return initializer_.get();
+  }
+
+ private:
+  std::shared_ptr<ThreadInitializer> initializer_;
+};
+
+ThreadManager* boltThreadManagerFactory(const std::string& kind, std::unique_ptr<ThreadInitializer> initializer) {
+  return new BoltThreadManager(kind, std::move(initializer));
+}
+
+void boltThreadManagerReleaser(ThreadManager* threadManager) {
+  delete threadManager;
+}
+
 Runtime* boltRuntimeFactory(
     const std::string& kind,
     MemoryManager* memoryManager,
@@ -113,6 +134,7 @@ void BoltBackend::init(
 
   // Register factories.
   MemoryManager::registerFactory(kBoltBackendKind, boltMemoryManagerFactory, boltMemoryManagerReleaser);
+  ThreadManager::registerFactory(kBoltBackendKind, boltThreadManagerFactory, boltThreadManagerReleaser);
   Runtime::registerFactory(kBoltBackendKind, boltRuntimeFactory, boltRuntimeReleaser);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
