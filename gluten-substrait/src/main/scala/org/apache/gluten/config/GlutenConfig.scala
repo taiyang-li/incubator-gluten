@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.config
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+
 import org.apache.gluten.shuffle.SupportsColumnarShuffle
 
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
@@ -533,10 +535,18 @@ object GlutenConfig extends ConfigRegistry {
     "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan"
   )
 
+  private def backendSettings(backendName: String) = {
+    // Only one backend is loaded in a running Gluten session. Use backend settings hooks to avoid
+    // hard-coding backend-specific configs in common code.
+    BackendsApiManager.getSettings
+  }
+
   /** Get dynamic configs. */
   def getNativeSessionConf(backendName: String, conf: Map[String, String]): Map[String, String] = {
+    val settings = backendSettings(backendName)
     val nativeConfMap = mutable.Map[String, String](conf.filter {
-      case (key, _) => nativeKeys.contains(key)
+      case (key, _) =>
+        nativeKeys.contains(key) || settings.extraNativeSessionConfKeys().contains(key)
     }.toSeq: _*)
 
     Seq(
@@ -650,6 +660,7 @@ object GlutenConfig extends ConfigRegistry {
       (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     ).foreach { case (k, defaultValue) => nativeConfMap.put(k, conf.getOrElse(k, defaultValue)) }
 
+    val settings = backendSettings(backendName)
     val keys = Set(
       DEBUG_ENABLED.key,
       // datasource config
@@ -667,7 +678,9 @@ object GlutenConfig extends ConfigRegistry {
       COLUMNAR_CUDF_ENABLED.key
     )
 
-    nativeConfMap ++= conf.filter { case (k, _) => keys.contains(k) }
+    nativeConfMap ++= conf.filter {
+      case (k, _) => keys.contains(k) || settings.extraNativeBackendConfKeys().contains(k)
+    }
 
     val confPrefix = prefixOf(backendName)
     val s3Prefix = HADOOP_PREFIX + S3A_PREFIX
