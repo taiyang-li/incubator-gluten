@@ -150,11 +150,16 @@ void BoltRuntime::getInfoAndIds(
       throw std::runtime_error("Could not find leafPlanNodeId.");
     }
     auto splitInfo = it->second;
-    if (splitInfo->isStream) {
-      streamIds.emplace_back(leafPlanNodeId);
-    } else {
-      scanInfos.emplace_back(splitInfo);
-      scanIds.emplace_back(leafPlanNodeId);
+    switch (splitInfo->leafType) {
+      case SplitInfo::LeafType::SPLIT_AWARE_STREAM:
+        streamIds.emplace_back(leafPlanNodeId);
+        break;
+      case SplitInfo::LeafType::TABLE_SCAN:
+        scanInfos.emplace_back(splitInfo);
+        scanIds.emplace_back(leafPlanNodeId);
+        break;
+      case SplitInfo::LeafType::TRIVIAL_LEAF:
+        break;
     }
   }
 }

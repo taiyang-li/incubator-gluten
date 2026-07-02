@@ -1243,7 +1243,7 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::constructValueStreamNode(
   auto node = factory(nextPlanNodeId(), pool_, streamIdx, outputType, rowCount);
 
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
+  splitInfo->leafType = SplitInfo::LeafType::SPLIT_AWARE_STREAM;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
@@ -1261,7 +1261,7 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::constructValuesNode(
   auto node = std::make_shared<bytedance::bolt::core::ValuesNode>(nextPlanNodeId(), std::move(values));
 
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
+  splitInfo->leafType = SplitInfo::LeafType::TRIVIAL_LEAF;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
@@ -1287,7 +1287,8 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Re
 
   // Otherwise, will create TableScan node for ReadRel.
   auto splitInfo = std::make_shared<SplitInfo>();
-  if (!validationMode_) {
+  splitInfo->leafType = SplitInfo::LeafType::TABLE_SCAN;
+  if (!validationMode_ && !readRel.has_virtual_table()) {
     BOLT_CHECK_LT(splitInfoIdx_, splitInfos_.size(), "Plan must have readRel and related split info.");
     splitInfo = splitInfos_[splitInfoIdx_++];
   }
@@ -1438,7 +1439,11 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(
     vectors.emplace_back(std::make_shared<RowVector>(pool_, type, nullptr, batchSize, children));
   }
 
-  return std::make_shared<core::ValuesNode>(nextPlanNodeId(), std::move(vectors));
+  auto valuesNode = std::make_shared<core::ValuesNode>(nextPlanNodeId(), std::move(vectors));
+  auto splitInfo = std::make_shared<SplitInfo>();
+  splitInfo->leafType = SplitInfo::LeafType::TRIVIAL_LEAF;
+  splitInfoMap_[valuesNode->id()] = splitInfo;
+  return valuesNode;
 }
 
 core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Rel& rel) {

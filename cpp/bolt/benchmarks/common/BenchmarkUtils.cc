@@ -60,6 +60,7 @@ bytedance::bolt::dwio::common::FileFormat getFileFormat(const std::string& fileF
 
 std::shared_ptr<gluten::SplitInfo> getSplitInfos(const std::string& datasetPath, const std::string& fileFormat) {
   auto scanInfo = std::make_shared<gluten::SplitInfo>();
+  scanInfo->leafType = gluten::SplitInfo::LeafType::TABLE_SCAN;
 
   // Set format to scan info.
   scanInfo->format = getFileFormat(fileFormat);
@@ -84,6 +85,7 @@ std::shared_ptr<gluten::SplitInfo> getSplitInfos(const std::string& datasetPath,
 
 std::shared_ptr<gluten::SplitInfo> getSplitInfosFromFile(const std::string& fileName, const std::string& fileFormat) {
   auto scanInfo = std::make_shared<gluten::SplitInfo>();
+  scanInfo->leafType = gluten::SplitInfo::LeafType::TABLE_SCAN;
 
   // Set format to scan info.
   scanInfo->format = getFileFormat(fileFormat);
