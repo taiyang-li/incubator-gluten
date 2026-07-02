@@ -238,8 +238,9 @@ VeloxRuntime::VeloxRuntime(
     const std::string& kind,
     VeloxMemoryManager* vmm,
     ThreadManager* threadManager,
-    const std::unordered_map<std::string, std::string>& confMap)
-    : Runtime(kind, vmm, threadManager, confMap) {
+    const std::unordered_map<std::string, std::string>& confMap,
+    int64_t taskId)
+    : Runtime(kind, vmm, threadManager, confMap, taskId) {
   // Refresh session config.
   veloxCfg_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_));

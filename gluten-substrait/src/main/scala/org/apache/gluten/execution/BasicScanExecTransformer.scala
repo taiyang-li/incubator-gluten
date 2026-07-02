@@ -22,11 +22,12 @@ import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
+import org.apache.gluten.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.adaptive.InputStats
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -36,9 +37,11 @@ import scala.collection.JavaConverters._
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
   import org.apache.spark.sql.catalyst.util._
 
+  protected def rewriteNativeScanFilters(filters: Seq[Expression]): Seq[Expression] = filters
+
   /** Returns the filters that can be pushed down to native file scan */
   final def filterExprs(): Seq[Expression] = {
-    if (pushDownFilters.nonEmpty) {
+    val nativeFilters = if (pushDownFilters.nonEmpty) {
       val (_, scanFiltersNotInPushDownFilters) =
         scanFilters.partition(pushDownFilters.get.contains(_))
       // For filters that only exists in scan, we need to check if they are supported.
@@ -58,6 +61,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       scanFilters.filter(
         BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
     }
+    rewriteNativeScanFilters(nativeFilters)
   }
 
   /** Returns the filters that already exists in scan. */
@@ -93,6 +97,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
 
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
+
+  def getInputStats: Option[InputStats] = Option.empty
 
   override def getSplitInfos: Seq[SplitInfo] = {
     getSplitInfosFromPartitions(getPartitionWithReadFileFormats)
@@ -183,6 +189,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
+    getInputStats.foreach(
+      inputStats => {
+        logInfo(s"hit scan inputStats with $inputStats")
+        readNode.asInstanceOf[ReadRelNode].setInputStats(inputStats)
+      })
     TransformContext(output, readNode)
   }
 }

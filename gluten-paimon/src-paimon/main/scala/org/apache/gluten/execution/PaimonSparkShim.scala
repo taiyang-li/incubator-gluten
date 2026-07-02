@@ -14,21 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory;
+package org.apache.gluten.execution
 
-import org.apache.gluten.memory.listener.ReservationListener;
+import org.apache.spark.internal.Logging
 
-public class NativeMemoryManagerJniWrapper {
-  private NativeMemoryManagerJniWrapper() {}
+import org.apache.paimon.io.DataFileMeta
+import org.apache.paimon.spark.PaimonScan
+import org.apache.paimon.table.source.DataSplit
+import org.apache.paimon.utils.InternalRowPartitionComputer
 
-  public static native long create(
-      String backendType, ReservationListener listener, byte[] sessionConf, String name);
+trait PaimonSparkShim extends Logging {
 
-  public static native byte[] collectUsage(long handle);
+  def isChainSplit(split: DataSplit): Boolean
 
-  public static native long shrink(long handle, long size);
+  def getSplitPartition(split: DataSplit): org.apache.paimon.data.InternalRow
 
-  public static native void hold(long handle, String name, long taskAttemptId);
+  def getBucketPath(split: DataSplit, file: DataFileMeta): String
 
-  public static native void release(long handle, long taskAttemptId);
+  def getInternalPartitionComputer(scan: PaimonScan): InternalRowPartitionComputer
 }
