@@ -76,6 +76,8 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
       return UNKNOWN();
     case ::substrait::Type::KindCase::kDate:
       return DATE();
+    case ::substrait::Type::KindCase::kTimestampTz:
+      return TIMESTAMP();
     case ::substrait::Type::KindCase::kTimestamp:
       return TIMESTAMP();
     case ::substrait::Type::KindCase::kDecimal: {
@@ -393,6 +395,9 @@ bool SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& li
 
 template <>
 Timestamp SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_timestamp_tz()) {
+    return Timestamp::fromMicros(literal.timestamp_tz());
+  }
   return Timestamp::fromMicros(literal.timestamp());
 }
 

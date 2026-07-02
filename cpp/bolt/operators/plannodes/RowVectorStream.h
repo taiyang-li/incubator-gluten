@@ -135,6 +135,10 @@ class ValueStreamNode final : public bytedance::bolt::core::PlanNode {
     return kEmptySources_;
   };
 
+  bool requiresSplits() const override {
+    return true;
+  }
+
   ResultIterator* iterator() const {
     return iterator_.get();
   }

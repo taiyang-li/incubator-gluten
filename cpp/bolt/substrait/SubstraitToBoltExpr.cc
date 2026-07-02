@@ -132,6 +132,8 @@ TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
       return DATE();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestampTz:
+      return TIMESTAMP();
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
       return TIMESTAMP();
     case ::substrait::Expression_Literal::LiteralTypeCase::kString:
