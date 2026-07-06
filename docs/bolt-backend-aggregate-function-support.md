@@ -1,3 +1,9 @@
+---
+layout: page
+title: Bolt Backend Aggregate Function Support
+nav_order: 21
+---
+
 # Aggregate Functions Support Status in Bolt
 
 **Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 54 functions and partially supports 1 function for Bolt backend.**

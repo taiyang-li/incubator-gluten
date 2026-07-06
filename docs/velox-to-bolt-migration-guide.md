@@ -1,3 +1,9 @@
+---
+layout: page
+title: Velox to Bolt Migration Guide
+nav_order: 19
+---
+
 # Guide to Migrating to Bolt Backend from Velox in Gluten
 
 This document provides a detailed guide for users already running Gluten with the Velox backend, facilitating a smooth migration to the Bolt backend while leveraging its unified lakehouse acceleration capabilities.

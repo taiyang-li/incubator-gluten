@@ -1,3 +1,10 @@
+---
+layout: page
+title: Bolt File System Support
+nav_order: 11
+parent: Getting-Started
+---
+
 # Bolt File System Support
 
 This document provides summary of file system support in Bolt.

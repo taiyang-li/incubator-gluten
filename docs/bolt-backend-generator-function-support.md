@@ -1,3 +1,9 @@
+---
+layout: page
+title: Bolt Backend Generator Function Support
+nav_order: 23
+---
+
 # Spark Generator Functions Support Status in Bolt
 
 - **Date**: 2026-01-08

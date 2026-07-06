@@ -1,3 +1,9 @@
+---
+layout: page
+title: Bolt Backend Window Function Support
+nav_order: 22
+---
+
 # Window Functions Support Status in Bolt
 
 | Spark Functions | Spark Expressions | Status | Restrictions |

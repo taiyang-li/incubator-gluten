@@ -1,3 +1,9 @@
+---
+layout: page
+title: Bolt Backend Scalar Function Support
+nav_order: 20
+---
+
 # Bolt Scalar Function Support Status
 
 This document outlines the scalar functions that are **default-registered and available at runtime** in the current version of Bolt. 
@@ -388,4 +394,3 @@ This document outlines the scalar functions that are **default-registered and av
 ## XML Functions
 
 Bolt does not currently register any XML-related scalar functions.
-

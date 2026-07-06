@@ -26,7 +26,7 @@ class AllBoltConfiguration extends AnyFunSuite {
   private val markdown = Paths.get(glutenHome, "docs", "bolt-configuration.md").toAbsolutePath
 
   test("Check bolt backend configs") {
-    val builder = MarkdownBuilder(getClass.getName)
+    val builder = MarkdownBuilder()
 
     builder ++=
       s"""
@@ -37,6 +37,8 @@ class AllBoltConfiguration extends AnyFunSuite {
          |---
          |
          |"""
+
+    builder.generationHint(getClass.getName)
 
     builder ++=
       s"""

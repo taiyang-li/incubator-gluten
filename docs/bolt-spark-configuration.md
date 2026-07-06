@@ -1,6 +1,8 @@
+---
 layout: page
 title: Spark configurations status in Gluten Bolt Backend
 nav_order: 17
+---
 
 The file lists the if Spark configurations are hornored by Gluten Bolt backend or not. Table is from Spark4.0 configuration page. The status are:
 - H: hornored

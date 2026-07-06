@@ -1,3 +1,9 @@
+---
+layout: page
+title: Bolt Parquet Write Configuration
+nav_order: 24
+---
+
 # Bolt Parquet Write Configuration
 
 This document outlines the Parquet write-time configuration options supported in Bolt. The Bolt Parquet writer is based on the Arrow C++ Parquet library and is primarily exposed through the Hive connector.

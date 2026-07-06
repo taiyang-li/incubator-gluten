@@ -1,3 +1,10 @@
+---
+layout: page
+title: Bolt Function Development
+nav_order: 19
+parent: Developer Overview
+---
+
 # Developer Guide for Implementing Spark SQL Functions in Bolt
 
 This guide provides instructions for implementing and registering Spark SQL's built-in functions within the Bolt native engine for use with Gluten. Understanding Bolt's function architecture and its interaction with Gluten is key to extending its capabilities.

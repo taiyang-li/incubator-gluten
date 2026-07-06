@@ -1,3 +1,10 @@
+---
+layout: page
+title: Bolt Local Caching
+nav_order: 12
+parent: Getting-Started
+---
+
 # Bolt Local Caching
 
 Bolt supports a two-tiered local caching mechanism to accelerate queries that read data from remote storage systems like HDFS, S3, ABFS, or GCS. When enabled, data blocks read from a remote source are asynchronously persisted to local storage. Future requests for the same data can then be served from the local cache, avoiding repeated network I/O.
@@ -76,4 +83,3 @@ For optimal performance, follow these recommendations:
 - **Cache Hits**: If requested data is found in the in-memory cache, it is served immediately (a RAM hit). If not in memory, the SSD cache is checked. If present, it is read from the local SSD (an SSD hit) and populated back into memory. If the data is in neither cache, it is fetched from the remote source.
 - **Admission and Eviction**: The cache uses a scoring mechanism based on access frequency and recency to determine which blocks to keep. When the cache is full, blocks with the lowest scores are evicted to make room for new data.
 - **Cache Clearing and Shutdown**: The cache can be explicitly cleared via the `clear()` method. The `shutdown()` method ensures all pending writes are completed and a final checkpoint is created if durability is enabled.
-

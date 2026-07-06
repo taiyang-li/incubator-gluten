@@ -1,3 +1,9 @@
+---
+layout: page
+title: Bolt Quick Start
+nav_order: 18
+---
+
 # Quick Start: Testing Gluten with the Bolt Backend
 
 This guide provides a task-oriented walkthrough to quickly verify that the Gluten Bolt backend is working in `spark-shell` (local mode) and `spark-submit` (cluster mode), assuming you have a pre-built Gluten JAR.
