@@ -16,21 +16,8 @@
  */
 
 #include "JniCommon.h"
-#include <folly/system/ThreadName.h>
 
 #include <unordered_map>
-
-namespace {
-std::mutex& inputIteratorFactoryMutex() {
-  static std::mutex mutex;
-  return mutex;
-}
-
-std::unordered_map<std::string, gluten::InputIteratorFactory>& inputIteratorFactories() {
-  static std::unordered_map<std::string, gluten::InputIteratorFactory> factories;
-  return factories;
-}
-} // namespace
 
 void gluten::JniCommonState::ensureInitialized(JNIEnv* env) {
   std::lock_guard<std::mutex> lockGuard(mtx_);
@@ -81,28 +68,9 @@ gluten::Runtime* gluten::getRuntime(JNIEnv* env, jobject runtimeAware) {
   return ctx;
 }
 
-void gluten::registerInputIteratorFactory(const std::string& kind, InputIteratorFactory factory) {
-  std::lock_guard<std::mutex> lock(inputIteratorFactoryMutex());
-  auto [_, inserted] = inputIteratorFactories().emplace(kind, std::move(factory));
-  GLUTEN_CHECK(inserted, "Input iterator factory already registered for " + kind);
-}
-
-std::unique_ptr<gluten::ColumnarBatchIterator>
-gluten::createInputIterator(JNIEnv* env, jobject jColumnarBatchItr, Runtime* runtime, int32_t iteratorIndex) {
-  std::lock_guard<std::mutex> lock(inputIteratorFactoryMutex());
-  const auto it = inputIteratorFactories().find(runtime->kind());
-  if (it != inputIteratorFactories().end()) {
-    return it->second(env, jColumnarBatchItr, runtime, iteratorIndex);
-  }
-  return makeJniColumnarBatchIterator(env, jColumnarBatchItr, runtime, iteratorIndex);
-}
-
-std::unique_ptr<gluten::JniColumnarBatchIterator> gluten::makeJniColumnarBatchIterator(
-    JNIEnv* env,
-    jobject jColumnarBatchItr,
-    gluten::Runtime* runtime,
-    std::optional<int32_t> iteratorIndex) {
-  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime, iteratorIndex);
+std::unique_ptr<gluten::JniColumnarBatchIterator>
+gluten::makeJniColumnarBatchIterator(JNIEnv* env, jobject jColumnarBatchItr, gluten::Runtime* runtime) {
+  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime);
 }
 
 gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
