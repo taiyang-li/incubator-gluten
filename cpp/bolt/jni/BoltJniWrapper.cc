@@ -480,6 +480,35 @@ Java_org_apache_gluten_utils_BoltFileSystemValidationJniWrapper_allSupportedByRe
   JNI_METHOD_END(false)
 }
 
+static inline std::vector<std::string> ToStringVector(JNIEnv* env, jobjectArray& str_array) {
+  std::vector<std::string> vector;
+  if (str_array == NULL) {
+    return vector;
+  }
+  int length = env->GetArrayLength(str_array);
+  for (int i = 0; i < length; i++) {
+    auto string = reinterpret_cast<jstring>(env->GetObjectArrayElement(str_array, i));
+    vector.push_back(jStringToCString(env, string));
+  }
+  return vector;
+}
+static inline std::vector<std::string> FromByteArrToStringVector(JNIEnv* env, jobjectArray& str_array) {
+  std::vector<std::string> vector;
+  if (str_array == NULL) {
+    return vector;
+  }
+  int length = env->GetArrayLength(str_array);
+  for (int i = 0; i < length; i++) {
+    jbyteArray byte_array = reinterpret_cast<jbyteArray>(env->GetObjectArrayElement(str_array, i));
+    int bytes_len = env->GetArrayLength(byte_array);
+    signed char array[bytes_len];
+    env->GetByteArrayRegion(byte_array, 0, bytes_len, array);
+    std::string j_string(reinterpret_cast<char*>(array), sizeof(array));
+    vector.push_back(j_string);
+  }
+  return vector;
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_BoltDataSourceJniWrapper_init( // NOLINT
     JNIEnv* env,
     jobject wrapper,
