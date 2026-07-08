@@ -80,8 +80,8 @@ namespace {
 MemoryManager* veloxMemoryManagerFactory(
     const std::string& kind,
     std::unique_ptr<AllocationListener> listener,
-    const std::string& name) {
-  return new VeloxMemoryManager(kind, std::move(listener), *VeloxBackend::get()->getBackendConf(), name);
+    const MemoryManagerOptions& options) {
+  return new VeloxMemoryManager(kind, std::move(listener), *VeloxBackend::get()->getBackendConf(), options.name);
 }
 
 void veloxMemoryManagerReleaser(MemoryManager* memoryManager) {
@@ -93,10 +93,10 @@ Runtime* veloxRuntimeFactory(
     MemoryManager* memoryManager,
     ThreadManager* threadManager,
     const std::unordered_map<std::string, std::string>& sessionConf,
-    int64_t taskId) {
+    const RuntimeOptions& options) {
   auto* vmm = dynamic_cast<VeloxMemoryManager*>(memoryManager);
   GLUTEN_CHECK(vmm != nullptr, "Not a Velox memory manager");
-  return new VeloxRuntime(kind, vmm, threadManager, sessionConf, taskId);
+  return new VeloxRuntime(kind, vmm, threadManager, sessionConf, options);
 }
 
 void veloxRuntimeReleaser(Runtime* runtime) {

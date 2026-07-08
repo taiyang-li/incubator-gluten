@@ -18,9 +18,6 @@
 #pragma once
 
 #include <glog/logging.h>
-#ifdef GLUTEN_ENABLE_BOLT
-#include <bolt/common/memory/sparksql/NativeMemoryManagerFactory.h>
-#endif
 #include <cstdint>
 #include <memory>
 
@@ -67,6 +64,10 @@ struct SplitPayloadBufferView {
   int32_t size;
 };
 
+struct RuntimeOptions {
+  int64_t taskAttemptId{-1};
+};
+
 class Runtime : public std::enable_shared_from_this<Runtime> {
  public:
   using Factory = std::function<Runtime*(
@@ -74,7 +75,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       MemoryManager* memoryManager,
       ThreadManager* threadManager,
       const std::unordered_map<std::string, std::string>& sessionConf,
-      int64_t taskId)>;
+      const RuntimeOptions& options)>;
   using Releaser = std::function<void(Runtime*)>;
   static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
   static Runtime* create(
@@ -82,7 +83,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       MemoryManager* memoryManager,
       ThreadManager* threadManager,
       const std::unordered_map<std::string, std::string>& sessionConf = {},
-      int64_t taskId = -1);
+      RuntimeOptions options = {});
   static void release(Runtime*);
   static std::optional<std::string>* localWriteFilesTempPath();
   static std::optional<std::string>* localWriteFileName();
@@ -92,12 +93,12 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       MemoryManager* memoryManager,
       ThreadManager* threadManager,
       const std::unordered_map<std::string, std::string>& confMap,
-      int64_t taskId = -1)
+      RuntimeOptions options = {})
       : kind_(kind),
         memoryManager_(memoryManager),
         threadManager_(threadManager),
         confMap_(confMap),
-        taskId_(taskId) {}
+        options_(std::move(options)) {}
 
   virtual ~Runtime() = default;
 
@@ -206,8 +207,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return objStore_->save(obj);
   }
 
-  int64_t taskId() const {
-    return taskId_;
+  const RuntimeOptions& runtimeOptions() const {
+    return options_;
   }
 
  protected:
@@ -222,6 +223,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   std::optional<SparkTaskInfo> taskInfo_{std::nullopt};
   std::shared_ptr<WholeStageDumper> dumper_{nullptr};
-  int64_t taskId_{-1};
+  RuntimeOptions options_;
 };
 } // namespace gluten

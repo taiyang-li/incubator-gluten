@@ -17,10 +17,8 @@
 
 #pragma once
 
-#if defined(__GNUC__)
-#define LIKELY(x) (__builtin_expect((x), 1))
-#define UNLIKELY(x) (__builtin_expect((x), 0))
+#if defined(__clang__) || defined(__GNUC__)
+#define FLATTEN __attribute__((flatten))
 #else
-#define LIKELY(x) (x)
-#define UNLIKELY(x) (x)
+#define FLATTEN
 #endif

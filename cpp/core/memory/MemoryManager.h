@@ -17,23 +17,39 @@
 
 #pragma once
 
+#include <cstdint>
+#include <string>
+#include <utility>
+
 #include "arrow/memory_pool.h"
 #include "memory.pb.h"
 #include "memory/AllocationListener.h"
 
 namespace gluten {
 
+struct MemoryManagerOptions {
+  std::string name;
+};
+
+struct MemoryManagerLifecycleContext {
+  std::string name;
+  int64_t taskAttemptId{-1};
+};
+
 class MemoryManager {
  public:
-  using Factory = std::function<
-      MemoryManager*(const std::string& kind, std::unique_ptr<AllocationListener> listener, const std::string& name)>;
+  using Factory = std::function<MemoryManager*(
+      const std::string& kind,
+      std::unique_ptr<AllocationListener> listener,
+      const MemoryManagerOptions& options)>;
   using Releaser = std::function<void(MemoryManager*)>;
   static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
   static MemoryManager*
-  create(const std::string& kind, std::unique_ptr<AllocationListener> listener, const std::string& name = "");
+  create(const std::string& kind, std::unique_ptr<AllocationListener> listener, MemoryManagerOptions options = {});
   static void release(MemoryManager*);
 
-  MemoryManager(const std::string& kind, const std::string& name = "") : kind_(kind), name_(name){};
+  MemoryManager(const std::string& kind, MemoryManagerOptions options = {})
+      : kind_(kind), options_(std::move(options)){};
 
   virtual ~MemoryManager() = default;
 
@@ -42,7 +58,11 @@ class MemoryManager {
   }
 
   std::string name() const {
-    return name_;
+    return options_.name;
+  }
+
+  const MemoryManagerOptions& options() const {
+    return options_;
   }
 
   // Get the default Arrow memory pool for this memory manager. This memory pool is held by the memory manager.
@@ -62,9 +82,15 @@ class MemoryManager {
   // by this manager, be guaranteed safe to access during the period that this manager is alive.
   virtual void hold() = 0;
 
+  virtual void hold(const MemoryManagerLifecycleContext&) {
+    hold();
+  }
+
+  virtual void beforeRelease(const MemoryManagerLifecycleContext&) {}
+
  private:
   std::string kind_;
-  std::string name_;
+  MemoryManagerOptions options_;
 };
 
 } // namespace gluten

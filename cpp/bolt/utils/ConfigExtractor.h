@@ -24,16 +24,12 @@
 #include <unordered_map>
 
 #include "config/GlutenConfig.h"
+#include "utils/ConfigResolver.h"
 #include "bolt/common/config/Config.h"
 
 namespace gluten {
 
 enum class FileSystemType : uint8_t { kHdfs, kS3, kAbfs, kGcs, kAll };
-
-std::string getConfigValue(
-    const std::unordered_map<std::string, std::string>& confMap,
-    const std::string& key,
-    const std::optional<std::string>& fallbackValue);
 
 std::shared_ptr<bytedance::bolt::config::ConfigBase> getHiveConfig(
     std::shared_ptr<bytedance::bolt::config::ConfigBase> conf,

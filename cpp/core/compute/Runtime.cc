@@ -42,9 +42,9 @@ Runtime* Runtime::create(
     MemoryManager* memoryManager,
     ThreadManager* threadManager,
     const std::unordered_map<std::string, std::string>& sessionConf,
-    int64_t taskId) {
+    RuntimeOptions options) {
   auto& factory = runtimeFactories().get(kind);
-  return factory(kind, memoryManager, threadManager, sessionConf, taskId);
+  return factory(kind, memoryManager, threadManager, sessionConf, options);
 }
 
 void Runtime::release(Runtime* runtime) {
