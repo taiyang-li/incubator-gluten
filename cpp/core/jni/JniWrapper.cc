@@ -42,7 +42,6 @@
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
 #include "utils/ArrowStatus.h"
-#include "utils/ConfigResolver.h"
 #include "utils/StringUtil.h"
 
 using namespace gluten;

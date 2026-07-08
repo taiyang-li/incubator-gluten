@@ -47,6 +47,7 @@
 #include "substrait/SubstraitToBoltPlanValidator.h"
 #include "utils/BoltBatchResizer.h"
 #include "utils/ObjectStore.h"
+#include "config/BoltConfig.h"
 
 #ifdef GLUTEN_ENABLE_GPU
 #include "cudf/CudfPlanValidator.h"
@@ -75,6 +76,24 @@ jmethodID blockStripesConstructor;
 
 } // namespace
 
+namespace gluten {
+std::unique_ptr<ColumnarBatchIterator>
+createBoltInputIterator(JNIEnv* env, jobject jColumnarBatchItr, Runtime* runtime, int32_t iteratorIndex) {
+  const auto& conf = runtime->getConfMap();
+  bool parallelEnabled = getBoolConfigValue(conf, kGlutenEnableParallel, false);
+  LOG(INFO) << "nativeCreateKernelWithIterator parallelEnabled=" << parallelEnabled;
+
+  auto shuffleReaderIter =
+      ShuffleReaderWrapperedIterator::tryFrom(env, jColumnarBatchItr, runtime, parallelEnabled, iteratorIndex);
+  if (shuffleReaderIter != nullptr) {
+    LOG(INFO) << "Wrap ShuffleReaderWrapperedIterator for input iterator " << iteratorIndex;
+    return shuffleReaderIter;
+  }
+  return std::make_unique<BoltJniColumnarBatchIterator>(
+      env, jColumnarBatchItr, runtime, parallelEnabled, iteratorIndex);
+}
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -92,7 +111,6 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
 
   initBoltJniFileSystem(env);
   initBoltJniUDF(env);
-  registerBoltInputIteratorFactory();
   gluten::OnHeapMemUsedHookSetter::init(vm);
 
   infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
