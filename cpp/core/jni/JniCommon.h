@@ -338,19 +338,8 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatchIterator> dumpedIteratorReader_{nullptr};
 };
 
-using InputIteratorFactory = std::function<std::unique_ptr<
-    ColumnarBatchIterator>(JNIEnv* env, jobject jColumnarBatchItr, Runtime* runtime, int32_t iteratorIndex)>;
-
-void registerInputIteratorFactory(const std::string& kind, InputIteratorFactory factory);
-
-std::unique_ptr<ColumnarBatchIterator>
-createInputIterator(JNIEnv* env, jobject jColumnarBatchItr, Runtime* runtime, int32_t iteratorIndex);
-
-std::unique_ptr<JniColumnarBatchIterator> makeJniColumnarBatchIterator(
-    JNIEnv* env,
-    jobject jColumnarBatchItr,
-    Runtime* runtime,
-    std::optional<int32_t> iteratorIndex = std::nullopt);
+std::unique_ptr<JniColumnarBatchIterator>
+makeJniColumnarBatchIterator(JNIEnv* env, jobject jColumnarBatchItr, Runtime* runtime);
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten
