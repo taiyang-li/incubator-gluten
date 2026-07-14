@@ -203,6 +203,7 @@ object ExecUtil extends Logging {
       case _ =>
         if (BoltConfig.get.shuffleInsideBolt) {
           rdd match {
+
             /**
              * if enable shuffle offload, and rdd is GlutenWholeStageColumnarRDD, then wrap the
              * inner iterator to offload shuffle writer
