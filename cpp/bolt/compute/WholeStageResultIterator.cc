@@ -547,7 +547,6 @@ void WholeStageResultIterator::getOrderedNodeIds(
   } else {
     nodeIds.emplace_back(planNode->id());
   }
-  nodeIds.emplace_back(planNode->id());
 }
 
 void WholeStageResultIterator::constructPartitionColumns(
@@ -584,10 +583,10 @@ void WholeStageResultIterator::tryAddSplitsToTask() {
 }
 
 void WholeStageResultIterator::noMoreSplits() {
-  if (task_ == nullptr) {
-    initTask();
+  // Defer task initialization so a shuffle writer can still be attached to the plan.
+  if (task_ != nullptr) {
+    tryAddSplitsToTask();
   }
-  tryAddSplitsToTask();
 }
 
 void WholeStageResultIterator::requestBarrier() {
