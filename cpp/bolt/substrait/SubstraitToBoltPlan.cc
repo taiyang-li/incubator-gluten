@@ -21,25 +21,25 @@
 #include "PaimonTableEnhancement.pb.h"
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
-#include "operators/plannodes/RowVectorStream.h"
 #include "bolt/connectors/hive/HiveDataSink.h"
 #include "bolt/exec/TableWriter.h"
 #include "bolt/type/Type.h"
+#include "operators/plannodes/RowVectorStream.h"
 
 #include "utils/ConfigExtractor.h"
 #include "utils/BoltWriterUtils.h"
 
-#include "config.pb.h"
-#include "config/GlutenConfig.h"
-#include "config/BoltConfig.h"
-#include "bolt/shuffle/sparksql/ShuffleWriterNode.h"
+#include "bolt/expression/FunctionSignature.h"
 #include "bolt/shuffle/sparksql/ShuffleReaderNode.h"
-#include "shuffle/ReaderStreamIteratorWrapper.h"
-#include "shuffle/BoltShuffleReaderWrapper.h"
-#include "jni/JniCommon.h"
-#include "shuffle_reader_info.pb.h"
+#include "bolt/shuffle/sparksql/ShuffleWriterNode.h"
 #include "compute/BoltRuntime.h"
-
+#include "config.pb.h"
+#include "config/BoltConfig.h"
+#include "config/GlutenConfig.h"
+#include "jni/JniCommon.h"
+#include "shuffle/BoltShuffleReaderWrapper.h"
+#include "shuffle/ReaderStreamIteratorWrapper.h"
+#include "shuffle_reader_info.pb.h"
 
 #ifdef GLUTEN_ENABLE_GPU
 #include "bolt/experimental/cudf/connectors/hive/CudfHiveDataSink.h"
@@ -972,7 +972,8 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Wi
       windowParams.emplace_back(exprConverter_->toBoltExpr(arg.value(), inputType));
     }
     auto windowBoltType = SubstraitParser::parseType(windowFunction.output_type());
-    auto windowCall = std::make_shared<const core::CallTypedExpr>(windowBoltType, std::move(windowParams), funcName);
+    auto windowCall = std::make_shared<const core::CallTypedExpr>(
+        windowBoltType, std::move(windowParams), bytedance::bolt::exec::sanitizeName(funcName));
     auto upperBound = windowFunction.upper_bound();
     auto lowerBound = windowFunction.lower_bound();
     auto type = windowFunction.window_type();
