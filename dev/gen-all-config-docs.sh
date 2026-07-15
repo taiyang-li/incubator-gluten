@@ -21,14 +21,14 @@ BASEDIR=$(dirname "$0")
 MVN_CMD="${BASEDIR}/../build/mvn"
 
 GLUTEN_UPDATE="${GLUTEN_UPDATE:-1}" \
-${MVN_CMD} clean test \
-  -Pspark-4.0 -Pscala-2.13 -Pbackends-velox -pl backends-velox -am \
-  -Dtest=none \
-  -DfailIfNoTests=false \
-  -DwildcardSuites=org.apache.gluten.config.AllGlutenConfiguration,org.apache.gluten.config.AllVeloxConfiguration
+#${MVN_CMD} clean test \
+#  -Pspark-4.0 -Pscala-2.13 -Pbackends-velox -pl backends-velox -am \
+#  -Dtest=none \
+#  -DfailIfNoTests=false \
+#  -DwildcardSuites=org.apache.gluten.config.AllGlutenConfiguration,org.apache.gluten.config.AllVeloxConfiguration
 
-${MVN_CMD} clean test \
-  -Pbackends-bolt -pl backends-bolt -am \
+${MVN_CMD} test \
+  -Pspark-3.5 -Pscala-2.12 -Pbackends-bolt -pl backends-bolt -am \
   -Dtest=none \
   -DfailIfNoTests=false \
   -DwildcardSuites=org.apache.gluten.config.AllGlutenConfiguration,org.apache.gluten.config.AllBoltConfiguration
