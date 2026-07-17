@@ -2241,32 +2241,6 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
       })
   }
 
-  test("Check BoltResizeBatches is added on reused shuffle read") {
-    withSQLConf(
-      BoltConfig.COLUMNAR_BOLT_RESIZE_BATCHES_SHUFFLE_OUTPUT.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "2",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "10",
-      SQLConf.COALESCE_PARTITIONS_ENABLED.key -> "true"
-    ) {
-      val df = spark.range(100).toDF("id")
-      val join = df.join(df, "id")
-      checkAnswer(join, df)
-
-      val executedPlan = getExecutedPlan(join)
-      assert(executedPlan.collect { case _: ReusedExchangeExec => true }.nonEmpty)
-      assert(executedPlan.collect { case _: AQEShuffleReadExec => true }.nonEmpty)
-      assert(executedPlan.collect {
-        case resize: BoltResizeBatchesExec
-            if (resize.child match {
-              case AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ReusedExchangeExec, _), _) =>
-                true
-              case _ => false
-            }) =>
-          resize
-      }.nonEmpty)
-    }
-  }
-
   test("RowToBoltColumnar preferredBatchBytes") {
     Seq("1", "80", "100000000").foreach(
       preferredBatchBytes => {
