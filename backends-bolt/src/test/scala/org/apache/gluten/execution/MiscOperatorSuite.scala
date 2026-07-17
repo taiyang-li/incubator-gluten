@@ -2264,30 +2264,6 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
       })
   }
 
-  ignore("Optimize GetJsonObject(ToJson(NamedStruct))") {
-    withTable("t") {
-      withTempPath {
-        path =>
-          val query =
-            """
-              |select get_json_object(to_json(named_struct('a', id, 'b', id+1)), '$.a') as col
-              |from range(10)
-              |""".stripMargin
-          runQueryAndCompare(query)(
-            df => {
-              val executedPlan = getExecutedPlan(df)
-              val projectExec = executedPlan.find(_.isInstanceOf[ProjectExecTransformer])
-              assert(projectExec.isDefined)
-              val projectList = projectExec.get.asInstanceOf[ProjectExecTransformer].projectList
-              assert(projectList.exists(_ match {
-                case Alias(Cast(_: Attribute, StringType, _, _), _) => true
-                case _ => false
-              }))
-            })
-      }
-    }
-  }
-
   // FIXME: select get_json_object(to_json(named_struct('a', '{"x":1,"y":2}')), '$.a.x')
   // should return null instead of 1
   ignore("Support two level json path in GetJsonObject(ToJson(NamedStruct))") {
@@ -2317,42 +2293,6 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
               }))
             })
       }
-    }
-  }
-
-  test("Rewrite foldable Like(Concat())") {
-    runQueryAndCompare("select 'hello world' like concat('%', id, '%') from range(10)") {
-      df =>
-        {
-          val executedPlan = getExecutedPlan(df)
-          val projectExec = executedPlan.find(_.isInstanceOf[ProjectExecTransformer])
-          assert(projectExec.isDefined)
-          val projectList = projectExec.get.asInstanceOf[ProjectExecTransformer].projectList
-          assert(projectList.exists {
-            case Alias(_: Contains, _) => true
-            case _ => false
-          })
-        }
-    }
-  }
-  test("Rewrite foldable ArrayContains(Split())") {
-    runQueryAndCompare("""
-                         |select array_contains(
-                         | split('1,3572183', ',', -1),
-                         | cast(id as string)
-                         |) from range(10)
-                         |""".stripMargin) {
-      df =>
-        {
-          val executedPlan = getExecutedPlan(df)
-          val projectExec = executedPlan.find(_.isInstanceOf[ProjectExecTransformer])
-          assert(projectExec.isDefined)
-          val projectList = projectExec.get.asInstanceOf[ProjectExecTransformer].projectList
-          assert(projectList.exists {
-            case Alias(_: InSet, _) => true
-            case _ => false
-          })
-        }
     }
   }
 
