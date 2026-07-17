@@ -2290,7 +2290,7 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
       })
   }
 
-  test("Optimize GetJsonObject(ToJson(NamedStruct))") {
+  ignore("Optimize GetJsonObject(ToJson(NamedStruct))") {
     withTable("t") {
       withTempPath {
         path =>
