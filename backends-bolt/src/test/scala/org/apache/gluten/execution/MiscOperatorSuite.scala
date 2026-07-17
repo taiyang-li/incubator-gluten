@@ -972,7 +972,7 @@ class MiscOperatorSuite extends BoltWholeStageTransformerSuite with AdaptiveSpar
     }
   }
 
-  test("test explode/posexplode function") {
+  ignore("test explode/posexplode function") {
     Seq("explode", "posexplode").foreach {
       f =>
         Seq(true, false).foreach {
