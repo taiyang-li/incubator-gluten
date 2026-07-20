@@ -212,7 +212,7 @@ test:
 	SPARK_TESTING=true mvn -Pbackends-bolt -Pspark-3.2 -Pceleborn -Ppaimon package -Denforcer.skip=true
 
 test_spark35:
-	SPARK_TESTING=true mvn -Pbackends-bolt -Pspark-3.5 -Ppaimon -Phadoop-3.2 -Pceleborn -Piceberg package -Denforcer.skip=true -DfailIfNoTests=false -Dexec.skip -Dmaven.test.failure.ignore=true
+	SPARK_TESTING=true mvn -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn -Piceberg package -Denforcer.skip=true -DfailIfNoTests=false -Dexec.skip -Dmaven.test.failure.ignore=true
 
 cpp-test-release: release-with-tests
 	cd $(BUILD_DIR)/Release && ctest --timeout 7200 -j $(NUM_THREADS) --output-on-failure -V

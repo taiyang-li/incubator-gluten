@@ -603,10 +603,11 @@ object GlutenConfig extends ConfigRegistry {
     // so native reads ORC by position too. Harmless for backends that ignore this key.
     // String literal is used because gluten-substrait cannot depend on backends-velox.
     if (
-      backendName == "velox" &&
+      (backendName == "velox" || backendName == "bolt") &&
       conf.getOrElse(SPARK_ORC_FORCE_POSITIONAL_EVOLUTION, "false").toBoolean
     ) {
       nativeConfMap.put("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames", "false")
+      nativeConfMap.put("spark.gluten.sql.columnar.backend.bolt.orcUseColumnNames", "false")
     }
 
     // Pass the latest tokens to native

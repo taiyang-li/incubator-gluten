@@ -119,7 +119,7 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
       purge = false)
   }
 
-  ignoreGluten("orc.force.positional.evolution maps Hive ORC columns by position") {
+  test("xxx orc.force.positional.evolution maps Hive ORC columns by position") {
     val hiveClient: HiveClient =
       spark.sharedState.externalCatalog.unwrapped.asInstanceOf[HiveExternalCatalog].client
 
@@ -139,7 +139,8 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
               s"create table test_orc_pos_renamed(x int, y int) stored as orc location '$orcLoc'")
 
             // orc.force.positional.evolution=true => read by position: x -> c1 (=1), y -> c2 (=2).
-            withSQLConf("spark.hadoop.orc.force.positional.evolution" -> "true") {
+            withSQLConf("spark.gluten.sql.columnar.backend.bolt.orcUseColumnNames" -> "false",
+              "spark.hadoop.orc.force.positional.evolution" -> "true") {
               val df = sql("select x, y from test_orc_pos_renamed")
               checkAnswer(df, Seq(Row(1, 2)))
               checkOperatorMatch[HiveTableScanExecTransformer](df)
