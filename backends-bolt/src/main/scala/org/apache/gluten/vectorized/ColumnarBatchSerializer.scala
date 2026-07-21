@@ -271,9 +271,9 @@ private class ColumnarBatchSerializerInstanceImpl(
     }
 
     private def close0(): Unit = {
-      // Stop the native reader from pulling more input streams. The stream
-      // objects are owned and closed individually by the current shuffle path.
-      jniWrapper.stop(shuffleReaderHandle)
+      // The native reader now owns the input streams and closes them itself, and
+      // the reader handle is released by the TaskResources recycler. So there is
+      // nothing to stop/close here.
       if (numBatchesTotal > 0) {
         readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
       }

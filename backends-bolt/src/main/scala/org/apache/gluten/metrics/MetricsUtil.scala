@@ -143,7 +143,6 @@ object MetricsUtil extends Logging {
     operatorMetrics
   }
 
-
   /**
    * Generate the function which updates metrics fetched from certain iterator to transformers.
    *
