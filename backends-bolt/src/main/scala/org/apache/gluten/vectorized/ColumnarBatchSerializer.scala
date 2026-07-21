@@ -271,12 +271,14 @@ private class ColumnarBatchSerializerInstanceImpl(
     }
 
     private def close0(): Unit = {
+      // Stop the native reader from pulling more input streams. The stream
+      // objects are owned and closed individually by the current shuffle path.
+      jniWrapper.stop(shuffleReaderHandle)
       if (numBatchesTotal > 0) {
         readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
       }
       numOutputRows += numRowsTotal
       wrappedOut.close()
-      streamReader.close()
       if (cb != null) {
         cb.close()
       }

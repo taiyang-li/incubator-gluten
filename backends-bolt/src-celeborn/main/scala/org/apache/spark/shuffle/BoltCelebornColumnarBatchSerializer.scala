@@ -291,6 +291,7 @@ private class CelebornColumnarBatchSerializerInstance(
     }
 
     private def close0(): Unit = {
+      jniWrapper.stop(shuffleReaderHandle)
       if (numBatchesTotal > 0) {
         readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
       }
@@ -298,7 +299,6 @@ private class CelebornColumnarBatchSerializerInstance(
       if (wrappedOut != null) {
         wrappedOut.close()
       }
-      streamReader.close()
       if (cb != null) {
         cb.close()
       }
