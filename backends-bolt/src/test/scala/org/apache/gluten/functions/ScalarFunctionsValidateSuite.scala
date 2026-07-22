@@ -1567,12 +1567,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     val msg1 = intercept[Exception] {
       df5.select(map_from_arrays($"k", $"v")).collect
     }.getMessage
-    assert(msg1.contains("map key cannot be null"))
+    assert(msg1.contains("Cannot use null as map key"))
 
     val df6 = Seq((Seq(1, 2), Seq("a"))).toDF("k", "v")
     val msg2 = intercept[Exception] {
       df6.select(map_from_arrays($"k", $"v")).collect
     }.getMessage
-    assert(msg2.contains("Key and value arrays must be the same length"))
+    assert(msg2.contains("must have the same length"))
   }
 }
