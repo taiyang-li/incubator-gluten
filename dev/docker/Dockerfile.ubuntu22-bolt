@@ -14,11 +14,21 @@ RUN set -eux; \
     ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")" /usr/lib/jvm/java-17-openjdk
 
 ARG BUILD_DIR=/tmp/build
+ARG CMAKE_VERSION=3.31.10
 ARG MAVEN_VERSION=3.9.12
 
-
-# Use the distro CMake to avoid bootstrap failures in this Docker environment.
-RUN cmake --version
+# Install CMake
+RUN mkdir -p ${BUILD_DIR} && \
+    cd ${BUILD_DIR} && \
+    wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz && \
+    tar xf cmake-${CMAKE_VERSION}.tar.gz && \
+    cd cmake-${CMAKE_VERSION} && \
+    ./bootstrap --parallel=$(nproc) && \
+    ./configure --prefix=/usr && \
+    make -j$(nproc) && \
+    make install && \
+    cmake --version && \
+    rm -rf ${BUILD_DIR}/*
 
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk
 ENV PATH "$JAVA_HOME/bin:$PATH"
