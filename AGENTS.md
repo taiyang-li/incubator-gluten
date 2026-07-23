@@ -75,6 +75,30 @@ Do not pass a separate `-Pfast-build` to `run-scala-test.sh`. That script
 already appends `fast-build` internally; passing another `-P...` overrides the
 earlier profile list and can break reactor module selection.
 
+The Makefile targets (`make jar_spark35`, `make test_spark35`, etc.) invoke
+Maven through the `build/mvn -ntp` wrapper rather than a bare `mvn`, so they pin
+the Maven version and JVM flags Gluten expects.
+
+## Bolt Backend CI
+
+The Bolt backend has a single GitHub Actions workflow,
+`.github/workflows/bolt_backend_x86.yml` (`Bolt Backend (x86)`), triggered on
+`pull_request` with path filters mirroring the Velox backend CI. It runs one
+job that:
+
+1. Builds the CI image on the fly from `dev/docker/Dockerfile.ubuntu22-bolt`.
+   This is a temporary self-contained approach; once
+   `apache/gluten:ubuntu22-bolt` is published to Docker Hub, switch the job to
+   reference that pre-built image (aligned with the Velox backend CI).
+2. Builds the Bolt native libraries in the container (`make bolt-recipe` then
+   `make release`). The native `cpp-test` step is present but commented out — a
+   clean-runner native build plus `ctest` can exceed the 6h job limit; re-enable
+   it after the pre-built image is available.
+3. Runs the Spark 3.5 unit tests with
+   `build/mvn -ntp package -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn
+   -Piceberg` (the `make test_spark35` profile set minus `-Ppaimon`), with
+   `SPARK_TESTING=true`, on JDK 17 (the image's JDK).
+
 ## Before Committing
 
 You MUST run the following checks and fix any issues before committing.

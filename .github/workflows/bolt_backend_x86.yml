@@ -1,0 +1,107 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Bolt Backend (x86)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/bolt_backend_x86.yml'
+      - 'dev/docker/Dockerfile.ubuntu22-bolt'
+      - 'pom.xml'
+      - 'backends-bolt/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-core/**'
+      - 'gluten-substrait/**'
+      - 'gluten-arrow/**'
+      - 'gluten-iceberg/**'
+      - 'gluten-ut/**'
+      - 'package/**'
+      - 'shims/**'
+      - 'ep/bolt/**'
+      - 'cpp/**'
+      - 'dev/**'
+      - 'build/mvn'
+      - 'Makefile'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  # Image tag built on the fly from dev/docker/Dockerfile.ubuntu22-bolt.
+  # TODO: switch to the pre-published apache/gluten:ubuntu22-bolt image once
+  # it is available on Docker Hub, aligned with the Velox backend CI.
+  BOLT_IMAGE: 'gluten-bolt-ci:ubuntu22'
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  bolt-build-and-test-spark35:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Bolt CI docker image
+        run: |
+          docker build -f dev/docker/Dockerfile.ubuntu22-bolt -t $BOLT_IMAGE dev/docker
+
+      - name: Build Bolt native libraries and run cpp tests
+        run: |
+          docker run -v $GITHUB_WORKSPACE:/work -w /work $BOLT_IMAGE bash -c "
+            set -e
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+            export PATH=\$JAVA_HOME/bin:\$PATH
+            java -version
+            make bolt-recipe
+            make release
+          "
+          # TODO: Building native with tests and running ctest from scratch is
+          # very slow on a clean runner and may exceed the 6h job limit. Re-enable
+          # once the pre-built apache/gluten:ubuntu22-bolt image is available.
+          # docker run -v $GITHUB_WORKSPACE:/work -w /work $BOLT_IMAGE bash -c "
+          #   set -e
+          #   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          #   export PATH=\$JAVA_HOME/bin:\$PATH
+          #   make cpp-test-release
+          # "
+
+      - name: Build and run unit tests for Spark 3.5
+        run: |
+          docker run -e SPARK_TESTING=true -v $GITHUB_WORKSPACE:/work -w /work $BOLT_IMAGE bash -c "
+            set -e
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+            export PATH=\$JAVA_HOME/bin:\$PATH
+            java -version
+            build/mvn -ntp package -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn -Piceberg \
+              -Denforcer.skip=true -DfailIfNoTests=false -Dexec.skip \
+              -Dmaven.test.failure.ignore=true
+          "
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-report
+          path: '**/surefire-reports/TEST-*.xml'
+
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-test-log
+          path: |
+            **/target/*.log
+            **/gluten-ut/**/hs_err_*.log
+            **/gluten-ut/**/core.*
