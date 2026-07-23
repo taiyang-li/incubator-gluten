@@ -18,7 +18,6 @@ name: Build Bolt Docker Image
 on:
   push:
     branches:
-      - bolt_ci
       - add_bolt_backend_new
     paths:
       - '.github/workflows/docker_image_bolt.yml'
