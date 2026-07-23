@@ -41,7 +41,7 @@ ENV PATH "$JAVA_HOME/bin:$PATH"
 
 # Install maven
 ARG MAVEN_DIR=/opt/maven/apache-maven-${MAVEN_VERSION}
-ARG MAVEN_URL=https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
+ARG MAVEN_URL=https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
 RUN mkdir -p ${MAVEN_DIR} && \
     wget -qO- ${MAVEN_URL} | tar -zxf - -C  ${MAVEN_DIR} --strip-components=1 && \
     ln -sf ${MAVEN_DIR}/bin/mvn /usr/bin/mvn
@@ -59,6 +59,19 @@ RUN MINICONDA_VERSION=py310_23.1.0-1 && \
     pip install pydot conan && \
     conan profile detect
 ENV PATH "/root/miniconda3/bin:${PATH}"
+
+# Install Python test dependencies required by Spark UTs (pyspark-driven tests).
+RUN pip install pyspark==3.5.5 cython pandas==2.2.3 pyarrow==20.0.0
+
+# Install Spark 3.5 test resources (binary jars/python/bin + test resources from
+# the source release) into /opt/shims/spark35/spark_home/. This is the directory
+# passed as -Dspark.test.home when running the Spark UT suite (-Pspark-ut),
+# mirroring the apache/gluten:centos-8-jdk8 image used by the Velox backend CI.
+RUN set -eux; \
+    git clone --depth=1 https://github.com/apache/gluten /tmp/gluten-spark-res; \
+    cd /tmp/gluten-spark-res/.github/workflows/util/; \
+    ./install-spark-resources.sh 3.5 /opt/; \
+    rm -rf /tmp/gluten-spark-res
 
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/* && \

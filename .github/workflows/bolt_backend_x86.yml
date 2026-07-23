@@ -30,8 +30,8 @@ on:
       - 'gluten-ut/**'
       - 'package/**'
       - 'shims/**'
-      - 'ep/bolt/**'
-      - 'cpp/**'
+      - 'cpp/core/**'
+      - 'cpp/bolt/**'
       - 'dev/**'
       - 'build/mvn'
       - 'Makefile'
@@ -57,9 +57,24 @@ jobs:
         run: |
           docker build -f dev/docker/Dockerfile.ubuntu22-bolt -t $BOLT_IMAGE dev/docker
 
+      # Cache Conan's package store (compiled dependency binaries). On a hit,
+      # `conan install --build=missing` reuses the prebuilt packages instead of
+      # recompiling heavy deps (llvm-core/folly/arrow) from source. The key is
+      # keyed on the Conan recipe/patch files so it invalidates when deps change.
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.conan-cache
+          key: conan-bolt-${{ hashFiles('cpp/conanfile.py', 'ep/bolt/conanfile.py', 'ep/bolt/scripts/conan/**') }}
+          restore-keys: |
+            conan-bolt-
+
       - name: Build Bolt native libraries and run cpp tests
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work $BOLT_IMAGE bash -c "
+          mkdir -p $GITHUB_WORKSPACE/.conan-cache
+          docker run -v $GITHUB_WORKSPACE:/work -w /work \
+            -v $GITHUB_WORKSPACE/.conan-cache:/root/.conan2/p \
+            $BOLT_IMAGE bash -c "
             set -e
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
             export PATH=\$JAVA_HOME/bin:\$PATH
@@ -83,8 +98,11 @@ jobs:
             set -e
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
             export PATH=\$JAVA_HOME/bin:\$PATH
+            export SPARK_SCALA_VERSION=2.12
             java -version
-            build/mvn -ntp package -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn -Piceberg \
+            build/mvn -ntp clean test -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn -Piceberg -Pspark-ut \
+              -DargLine=\"-Dspark.test.home=/opt/shims/spark35/spark_home/\" \
+              -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.spark.tags.SlowHiveTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest \
               -Denforcer.skip=true -DfailIfNoTests=false -Dexec.skip \
               -Dmaven.test.failure.ignore=true
           "
