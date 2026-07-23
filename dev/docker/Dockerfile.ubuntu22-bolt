@@ -1,17 +1,22 @@
 FROM ubuntu:22.04 as base
 
 RUN set -eux; \
-    sed -i 's|^deb \(http://[^ ]*\)|deb [trusted=yes] \1|g' /etc/apt/sources.list; \
+    sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list; \
+    sed -i 's|^deb |deb [trusted=yes] |g' /etc/apt/sources.list; \
     rm -f /etc/apt/apt.conf.d/docker-clean; \
-    DEBIAN_FRONTEND=noninteractive apt update && \
-    apt install -y libnuma-dev openssl libcurl4-openssl-dev binutils-dev libssl-dev \
+    export JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=1 -XX:ParallelGCThreads=1 -XX:ConcGCThreads=1 -Xms16m -Xmx64m"; \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y libnuma-dev openssl libcurl4-openssl-dev binutils-dev libssl-dev \
         libgmp-dev libmpfr-dev libmpc-dev libisl-dev \
         make automake autoconf ninja-build cmake gperf \
         flex bison gcc-12 g++-12 \
-        python3 python3-pip python3-dev \
+        python3 python3-pip python3-dev openjdk-17-jdk \
         vim git openssh-client wget bzip2 && \
+    unset JAVA_TOOL_OPTIONS && \
     ln -sf /usr/bin/gcc-12 /usr/local/bin/gcc && \
-    ln -sf /usr/bin/g++-12 /usr/local/bin/g++;
+    ln -sf /usr/bin/g++-12 /usr/local/bin/g++ && \
+    mkdir -p /usr/lib/jvm && \
+    ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")" /usr/lib/jvm/java-17-openjdk
 
 ARG BUILD_DIR=/tmp/build
 ARG MAVEN_VERSION=3.9.12
@@ -20,22 +25,6 @@ ARG MAVEN_VERSION=3.9.12
 # Use the distro CMake to avoid bootstrap failures in this Docker environment.
 RUN cmake --version
 
-
-# Install java-17
-RUN set -eux; \
-    mkdir -p /usr/lib/jvm; \
-    arch="$(uname -m)"; \
-    case "${arch}" in \
-      x86_64) jdk_arch="x64" ;; \
-      aarch64) jdk_arch="aarch64" ;; \
-      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
-    esac; \
-    mkdir -p ${BUILD_DIR} && \
-    cd ${BUILD_DIR} && \
-    wget -O temurin17.tar.gz "https://api.adoptium.net/v3/binary/latest/17/ga/linux/${jdk_arch}/jdk/hotspot/normal/eclipse" && \
-    tar -xzf temurin17.tar.gz -C /usr/lib/jvm && \
-    ln -sfn /usr/lib/jvm/jdk-17* /usr/lib/jvm/java-17-openjdk && \
-    rm -rf ${BUILD_DIR}/*
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk
 ENV PATH "$JAVA_HOME/bin:$PATH"
 
@@ -58,29 +47,9 @@ RUN PIP_PROGRESS_BAR=off python3 -m pip install --disable-pip-version-check --up
 RUN PIP_PROGRESS_BAR=off pip install --disable-pip-version-check \
     pyspark==3.5.5 cython pandas==2.2.3 pyarrow==20.0.0
 
-# Install Spark 3.5 test resources into /opt/shims/spark35/spark_home/. Reuse
-# the already-installed PySpark package for jars/python/bin to avoid another
-# large binary Spark download, and only fetch the source tarball for test data.
-RUN set -eux; \
-    SPARK_VERSION=3.5.5; \
-    SCALA_VERSION=2.12; \
-    SPARK_VERSION_SHORT=35; \
-    INSTALL_DIR=/opt; \
-    SPARK_DIR=${INSTALL_DIR}/shims/spark${SPARK_VERSION_SHORT}/spark_home; \
-    SOURCE_TGZ=spark-${SPARK_VERSION}.tgz; \
-    SOURCE_URL=https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SOURCE_TGZ}; \
-    PYSPARK_DIR=/usr/local/lib/python3.10/dist-packages/pyspark; \
-    mkdir -p ${BUILD_DIR} ${SPARK_DIR}/assembly/target/scala-${SCALA_VERSION}; \
-    cp -a ${PYSPARK_DIR}/jars ${SPARK_DIR}/assembly/target/scala-${SCALA_VERSION}/; \
-    cp -a ${PYSPARK_DIR}/python ${SPARK_DIR}/; \
-    cp -a ${PYSPARK_DIR}/bin ${SPARK_DIR}/; \
-    cd ${BUILD_DIR}; \
-    wget --no-verbose --no-check-certificate -O ${SOURCE_TGZ} ${SOURCE_URL}; \
-    tar --strip-components=1 -xf ${SOURCE_TGZ} \
-      spark-${SPARK_VERSION}/sql/core/src/test/resources/ \
-      spark-${SPARK_VERSION}/sql/hive/src/test/resources/; \
-    mv sql ${SPARK_DIR}; \
-    rm -rf ${BUILD_DIR}/*
+COPY .github/workflows/util/install-spark-resources.sh /usr/local/bin/install-spark-resources.sh
+RUN chmod +x /usr/local/bin/install-spark-resources.sh && \
+    /usr/local/bin/install-spark-resources.sh 3.5 /opt/
 
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/* && \
