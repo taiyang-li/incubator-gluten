@@ -1,18 +1,13 @@
 FROM ubuntu:22.04 as base
 
 RUN set -eux; \
-    sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list; \
-    sed -i 's|^deb |deb [trusted=yes] |g' /etc/apt/sources.list; \
-    rm -f /etc/apt/apt.conf.d/docker-clean; \
-    export JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=1 -XX:ParallelGCThreads=1 -XX:ConcGCThreads=1 -Xms16m -Xmx64m"; \
-    DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y libnuma-dev openssl libcurl4-openssl-dev binutils-dev libssl-dev \
+    apt update && apt upgrade -y && \
+    apt install -y libnuma-dev openssl libcurl4-openssl-dev binutils-dev libssl-dev \
         libgmp-dev libmpfr-dev libmpc-dev libisl-dev \
         make automake autoconf ninja-build cmake gperf \
         flex bison gcc-12 g++-12 \
         python3 python3-pip python3-dev openjdk-17-jdk \
-        vim git openssh-client wget bzip2 && \
-    unset JAVA_TOOL_OPTIONS && \
+        vim git git-lfs openssh-client ssh wget bzip2 && \
     ln -sf /usr/bin/gcc-12 /usr/local/bin/gcc && \
     ln -sf /usr/bin/g++-12 /usr/local/bin/g++ && \
     mkdir -p /usr/lib/jvm && \
@@ -37,11 +32,18 @@ RUN mkdir -p ${MAVEN_DIR} && \
 ENV MAVEN_HOME ${MAVEN_DIR}
 ENV PATH ${MAVEN_HOME}/bin:${PATH}
 
-# Install Conan and Python dependencies without the Miniconda installer, which
-# starts worker threads that are blocked in some Docker build environments.
-RUN PIP_PROGRESS_BAR=off python3 -m pip install --disable-pip-version-check --upgrade pip || true && \
-    PIP_PROGRESS_BAR=off python3 -m pip install --disable-pip-version-check pydot conan && \
+# Install Conda & Conan
+RUN MINICONDA_VERSION=py310_23.1.0-1 && \
+    MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-$(arch).sh && \
+    mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR} && \
+    wget --progress=dot:mega -O miniconda.sh ${MINICONDA_URL} && \
+    chmod +x miniconda.sh && \
+    ./miniconda.sh -b -u -p /root/miniconda3 && rm -f miniconda.sh && \
+    echo "export PATH=/root/miniconda3/bin:\$PATH" >> /root/.bashrc && . /root/.bashrc && \
+    pip install --upgrade pip || true && \
+    pip install pydot conan && \
     conan profile detect
+ENV PATH "/root/miniconda3/bin:${PATH}"
 
 # Install Python test dependencies required by Spark UTs (pyspark-driven tests).
 RUN PIP_PROGRESS_BAR=off pip install --disable-pip-version-check \
