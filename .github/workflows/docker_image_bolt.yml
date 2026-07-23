@@ -19,6 +19,7 @@ on:
   push:
     branches:
       - add_bolt_backend_new
+      - bolt_ci
     paths:
       - '.github/workflows/docker_image_bolt.yml'
       - '.github/workflows/util/install-spark-resources.sh'
