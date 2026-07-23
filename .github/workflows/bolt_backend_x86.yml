@@ -38,7 +38,6 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  # Use the published Ubuntu 22 Bolt CI image directly from Docker Hub.
   BOLT_IMAGE: 'taiyangli/gluten:ubuntu22-bolt'
 
 concurrency:
@@ -82,7 +81,7 @@ jobs:
           "
           # TODO: Building native with tests and running ctest from scratch is
           # very slow on a clean runner and may exceed the 6h job limit. Re-enable
-          # once the pre-built apache/gluten:ubuntu22-bolt image is available.
+          # once the pre-built Bolt CI image has the required test dependencies.
           # docker run -v $GITHUB_WORKSPACE:/work -w /work $BOLT_IMAGE bash -c "
           #   set -e
           #   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
