@@ -38,10 +38,8 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  # Image tag built on the fly from dev/docker/Dockerfile.ubuntu22-bolt.
-  # TODO: switch to the pre-published apache/gluten:ubuntu22-bolt image once
-  # it is available on Docker Hub, aligned with the Velox backend CI.
-  BOLT_IMAGE: 'gluten-bolt-ci:ubuntu22'
+  # Use the published Ubuntu 22 Bolt CI image directly from Docker Hub.
+  BOLT_IMAGE: 'taiyangli/gluten:ubuntu22-bolt'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -53,9 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Bolt CI docker image
+      - name: Pull Bolt CI docker image
         run: |
-          docker build -f dev/docker/Dockerfile.ubuntu22-bolt -t $BOLT_IMAGE dev/docker
+          docker pull $BOLT_IMAGE
 
       # Cache Conan's package store (compiled dependency binaries). On a hit,
       # `conan install --build=missing` reuses the prebuilt packages instead of

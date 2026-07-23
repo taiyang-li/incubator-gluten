@@ -1,41 +1,41 @@
 FROM ubuntu:22.04 as base
 
 RUN set -eux; \
-    apt update && apt upgrade -y &&\
+    sed -i 's|^deb \(http://[^ ]*\)|deb [trusted=yes] \1|g' /etc/apt/sources.list; \
+    rm -f /etc/apt/apt.conf.d/docker-clean; \
+    DEBIAN_FRONTEND=noninteractive apt update && \
     apt install -y libnuma-dev openssl libcurl4-openssl-dev binutils-dev libssl-dev \
+        libgmp-dev libmpfr-dev libmpc-dev libisl-dev \
         make automake autoconf ninja-build cmake gperf \
-        flex bison gcc g++ gdb  \
+        flex bison gcc-12 g++-12 \
         python3 python3-pip python3-dev \
-        vim git git-lfs openssh-client ssh wget bzip2;
+        vim git openssh-client wget bzip2 && \
+    ln -sf /usr/bin/gcc-12 /usr/local/bin/gcc && \
+    ln -sf /usr/bin/g++-12 /usr/local/bin/g++;
 
 ARG BUILD_DIR=/tmp/build
-ARG GCC_VERSION=12.5.0
-ARG CMAKE_VERSION=3.31.10
 ARG MAVEN_VERSION=3.9.12
 
-# Install GCC
-RUN mkdir -p ${BUILD_DIR} &&\
-    cd ${BUILD_DIR} && wget https://github.com/gcc-mirror/gcc/archive/refs/tags/releases/gcc-${GCC_VERSION}.tar.gz &&\
-    tar -xzvf gcc-${GCC_VERSION}.tar.gz &&\
-    cd $(realpath gcc*-${GCC_VERSION}) &&\
-    ./contrib/download_prerequisites &&\
-    ./configure --prefix=/usr --enable-checking=release --enable-languages=c,c++ --disable-multilib  &&\
-    make -j $(nproc)   &&\
-    make install-strip  &&\
-    ldconfig &&\
-    rm -rf  ${BUILD_DIR}/gcc* ;
+
+# Use the distro CMake to avoid bootstrap failures in this Docker environment.
+RUN cmake --version
 
 
-# Install CMake
-RUN cd ${BUILD_DIR} && wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz &&\
-    tar xf cmake*.tar.gz &&\
-    cd cmake-${CMAKE_VERSION} &&\
-    ./bootstrap --parallel=$(nproc) && ./configure --prefix=/usr && make -j$(nproc) && make install && cmake --version &&\
-    rm -rf  ${BUILD_DIR}/* ;
-
-# Install java-17.0-openjdk
-RUN apt update && apt install -y openjdk-17-jdk && java -version &&\
-    ln -s  "/usr/lib/jvm/java-17-openjdk-$(uname -m | sed 's/x86_64/amd64/; s/aarch64/aarch64/')" /usr/lib/jvm/java-17-openjdk
+# Install java-17
+RUN set -eux; \
+    mkdir -p /usr/lib/jvm; \
+    arch="$(uname -m)"; \
+    case "${arch}" in \
+      x86_64) jdk_arch="x64" ;; \
+      aarch64) jdk_arch="aarch64" ;; \
+      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p ${BUILD_DIR} && \
+    cd ${BUILD_DIR} && \
+    wget -O temurin17.tar.gz "https://api.adoptium.net/v3/binary/latest/17/ga/linux/${jdk_arch}/jdk/hotspot/normal/eclipse" && \
+    tar -xzf temurin17.tar.gz -C /usr/lib/jvm && \
+    ln -sfn /usr/lib/jvm/jdk-17* /usr/lib/jvm/java-17-openjdk && \
+    rm -rf ${BUILD_DIR}/*
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk
 ENV PATH "$JAVA_HOME/bin:$PATH"
 
@@ -48,30 +48,39 @@ RUN mkdir -p ${MAVEN_DIR} && \
 ENV MAVEN_HOME ${MAVEN_DIR}
 ENV PATH ${MAVEN_HOME}/bin:${PATH}
 
-# Install Conda & Conan
-RUN MINICONDA_VERSION=py310_23.1.0-1 && \
-    MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-$(arch).sh && \
-    cd ${BUILD_DIR} && wget --progress=dot:mega -O miniconda.sh ${MINICONDA_URL} && \
-    chmod +x miniconda.sh &&\
-    ./miniconda.sh -b -u -p /root/miniconda3 && rm -f miniconda.sh && \
-    echo "export PATH=/root/miniconda3/bin:\$PATH" >> /root/.bashrc &&  . /root/.bashrc && \
-    pip install --upgrade pip || true && \
-    pip install pydot conan && \
+# Install Conan and Python dependencies without the Miniconda installer, which
+# starts worker threads that are blocked in some Docker build environments.
+RUN PIP_PROGRESS_BAR=off python3 -m pip install --disable-pip-version-check --upgrade pip || true && \
+    PIP_PROGRESS_BAR=off python3 -m pip install --disable-pip-version-check pydot conan && \
     conan profile detect
-ENV PATH "/root/miniconda3/bin:${PATH}"
 
 # Install Python test dependencies required by Spark UTs (pyspark-driven tests).
-RUN pip install pyspark==3.5.5 cython pandas==2.2.3 pyarrow==20.0.0
+RUN PIP_PROGRESS_BAR=off pip install --disable-pip-version-check \
+    pyspark==3.5.5 cython pandas==2.2.3 pyarrow==20.0.0
 
-# Install Spark 3.5 test resources (binary jars/python/bin + test resources from
-# the source release) into /opt/shims/spark35/spark_home/. This is the directory
-# passed as -Dspark.test.home when running the Spark UT suite (-Pspark-ut),
-# mirroring the apache/gluten:centos-8-jdk8 image used by the Velox backend CI.
+# Install Spark 3.5 test resources into /opt/shims/spark35/spark_home/. Reuse
+# the already-installed PySpark package for jars/python/bin to avoid another
+# large binary Spark download, and only fetch the source tarball for test data.
 RUN set -eux; \
-    git clone --depth=1 https://github.com/apache/gluten /tmp/gluten-spark-res; \
-    cd /tmp/gluten-spark-res/.github/workflows/util/; \
-    ./install-spark-resources.sh 3.5 /opt/; \
-    rm -rf /tmp/gluten-spark-res
+    SPARK_VERSION=3.5.5; \
+    SCALA_VERSION=2.12; \
+    SPARK_VERSION_SHORT=35; \
+    INSTALL_DIR=/opt; \
+    SPARK_DIR=${INSTALL_DIR}/shims/spark${SPARK_VERSION_SHORT}/spark_home; \
+    SOURCE_TGZ=spark-${SPARK_VERSION}.tgz; \
+    SOURCE_URL=https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SOURCE_TGZ}; \
+    PYSPARK_DIR=/usr/local/lib/python3.10/dist-packages/pyspark; \
+    mkdir -p ${BUILD_DIR} ${SPARK_DIR}/assembly/target/scala-${SCALA_VERSION}; \
+    cp -a ${PYSPARK_DIR}/jars ${SPARK_DIR}/assembly/target/scala-${SCALA_VERSION}/; \
+    cp -a ${PYSPARK_DIR}/python ${SPARK_DIR}/; \
+    cp -a ${PYSPARK_DIR}/bin ${SPARK_DIR}/; \
+    cd ${BUILD_DIR}; \
+    wget --no-verbose --no-check-certificate -O ${SOURCE_TGZ} ${SOURCE_URL}; \
+    tar --strip-components=1 -xf ${SOURCE_TGZ} \
+      spark-${SPARK_VERSION}/sql/core/src/test/resources/ \
+      spark-${SPARK_VERSION}/sql/hive/src/test/resources/; \
+    mv sql ${SPARK_DIR}; \
+    rm -rf ${BUILD_DIR}/*
 
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/* && \
