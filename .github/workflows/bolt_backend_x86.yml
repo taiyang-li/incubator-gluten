@@ -54,23 +54,23 @@ jobs:
         run: |
           docker pull $BOLT_IMAGE
 
-      # Cache Conan's package store (compiled dependency binaries). On a hit,
+      # Cache Conan's home, including package binaries, recipes and metadata. On a hit,
       # `conan install --build=missing` reuses the prebuilt packages instead of
       # recompiling heavy deps (llvm-core/folly/arrow) from source. The key is
       # keyed on the Conan recipe/patch files so it invalidates when deps change.
-      - name: Cache Conan packages
+      - name: Cache Conan home
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/.conan-cache
+          path: ${{ github.workspace }}/.conan2
           key: conan-bolt-${{ hashFiles('cpp/conanfile.py', 'ep/bolt/conanfile.py', 'ep/bolt/scripts/conan/**') }}
           restore-keys: |
             conan-bolt-
 
       - name: Build Bolt native libraries and run cpp tests
         run: |
-          mkdir -p $GITHUB_WORKSPACE/.conan-cache
+          mkdir -p $GITHUB_WORKSPACE/.conan2
           docker run --security-opt seccomp=unconfined -v $GITHUB_WORKSPACE:/work -w /work \
-            -v $GITHUB_WORKSPACE/.conan-cache:/root/.conan2/p \
+            -v $GITHUB_WORKSPACE/.conan2:/root/.conan2 \
             $BOLT_IMAGE bash -c "
             set -e
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
