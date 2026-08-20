@@ -891,6 +891,17 @@ class BoltSparkPlanExecApi extends SparkPlanExecApi {
         ExpressionNames.FROM_JSON,
         FromJsonRestrictions.NOT_SUPPORT_COLUMN_CORRUPT_RECORD)
     }
+    // ConverterUtils lowercases struct field names when case sensitivity is off, so a schema
+    // with an uppercase field name would reach the native side as something the JSON keys can
+    // no longer be matched against. Same guard as to_json below.
+    if (
+      !SQLConf.get.caseSensitiveAnalysis &&
+      ExpressionUtils.hasUppercaseStructFieldName(expr.schema)
+    ) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_UPPERCASE_STRUCT)
+    }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
