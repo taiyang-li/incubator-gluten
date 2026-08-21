@@ -48,6 +48,10 @@ object FromJsonRestrictions extends ExpressionRestrictions {
     s"${ExpressionNames.FROM_JSON} with duplicate keys is not supported in Bolt"
   val NOT_SUPPORT_COLUMN_CORRUPT_RECORD: String =
     s"${ExpressionNames.FROM_JSON} with column corrupt record is not supported in Bolt"
+  val NOT_SUPPORT_UPPERCASE_STRUCT: String =
+    s"When '${SQLConf.CASE_SENSITIVE.key} = false', the schema of" +
+      s" ${ExpressionNames.FROM_JSON} reaches Bolt with its struct field names lowercased," +
+      s" so a schema with an uppercase field name cannot be matched correctly"
 
   override val functionName: String = ExpressionNames.FROM_JSON
 
@@ -56,7 +60,8 @@ object FromJsonRestrictions extends ExpressionRestrictions {
     NOT_SUPPORT_WITH_OPTIONS,
     NOT_SUPPORT_CASE_SENSITIVE,
     NOT_SUPPORT_DUPLICATE_KEYS,
-    NOT_SUPPORT_COLUMN_CORRUPT_RECORD
+    NOT_SUPPORT_COLUMN_CORRUPT_RECORD,
+    NOT_SUPPORT_UPPERCASE_STRUCT
   )
 }
 

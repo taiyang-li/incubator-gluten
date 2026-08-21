@@ -103,6 +103,51 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("from_json function json key case sensitivity", "3.4") {
+    withTempPath {
+      path =>
+        Seq[String](
+          """{"Label":"yes","Value":"1"}""",
+          """{"label":"yes","value":"1"}""",
+          """{"Label":"no","value":"0"}""",
+          """{"label":"no","Value":"0"}"""
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        // A lowercase schema is offloaded, but the JSON keys are not constrained by it: only
+        // the keys spelled exactly as the schema may be matched.
+        runQueryAndCompare(
+          "select txt, from_json(txt, 'STRUCT<label: STRING, value: STRING>') from tbl") {
+          checkGlutenPlan[ProjectExecTransformer]
+        }
+    }
+  }
+
+  testWithMinSparkVersion("from_json function uppercase schema falls back", "3.4") {
+    withTempPath {
+      path =>
+        Seq[String](
+          """{"Label":"yes","Value":"1"}""",
+          """{"label":"yes","value":"1"}"""
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        // The schema loses its case on the way to the native side, so it must not be offloaded.
+        runQueryAndCompare(
+          "select txt, from_json(txt, 'STRUCT<Label: STRING, Value: STRING>') from tbl") {
+          checkSparkPlan[ProjectExec]
+        }
+    }
+  }
+
   testWithMinSparkVersion("from_json function small int", "3.4") {
     withTempPath {
       path =>
